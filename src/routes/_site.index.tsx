@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion } from "framer-motion";
-import { useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useState, useEffect } from "react";
 import {
   Check, ChevronDown, Star, Users, Clock, Calendar, Award, Dumbbell,
 } from "lucide-react";
@@ -55,45 +55,201 @@ const faqs = [
 ];
 
 function Home() {
+  const { scrollY } = useScroll();
+  const videoY = useTransform(scrollY, [0, 500], [0, 150]);
+  const contentY = useTransform(scrollY, [0, 500], [0, 80]);
+  const contentOpacity = useTransform(scrollY, [0, 300], [1, 0]);
+
+  const [particles, setParticles] = useState<{ id: number; size: number; x: number; y: number; tx: number[]; ty: number[]; duration: number }[]>([]);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const generated = Array.from({ length: 20 }).map((_, i) => ({
+      id: i,
+      size: Math.random() * 4 + 2,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      tx: [0, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 0],
+      ty: [0, (Math.random() - 0.5) * 80, (Math.random() - 0.5) * 80, 0],
+      duration: Math.random() * 20 + 20,
+    }));
+    setParticles(generated);
+
+    const handleScroll = () => {
+      if (window.scrollY > 100) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.15,
+      },
+    },
+  };
+
+  const wordVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        type: "spring" as const,
+        damping: 15,
+        stiffness: 100,
+      },
+    },
+  };
+
   return (
     <div>
       {/* HERO */}
-      <section className="relative overflow-hidden border-b border-[#1A1A1A]">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-[#E02020] opacity-20 blur-[140px]" />
-        </div>
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-24 md:py-36 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+      <section className="relative min-h-[90vh] md:h-screen w-full flex items-center justify-center overflow-hidden border-b border-[#1A1A1A] bg-black">
+        {/* Parallax Video Container */}
+        <motion.div style={{ y: videoY }} className="absolute inset-0 w-full h-full z-0 pointer-events-none">
+          {/* Desktop Video Background */}
+          <video
+            className="hidden md:block absolute inset-0 w-full h-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+            poster="/images/hero-poster.jpg"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1A1A1A] border border-[#222222] text-xs uppercase tracking-widest text-[#E02020] font-semibold mb-6">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#E02020]" />
+            <source src="/videos/gym-hero.webm" type="video/webm" />
+            <source src="/videos/gym-hero.mp4" type="video/mp4" />
+          </video>
+          
+          {/* Mobile Fallback Image */}
+          <div
+            className="block md:hidden absolute inset-0 w-full h-full bg-cover bg-center"
+            style={{ backgroundImage: `url('/images/hero-mobile-bg.jpg')` }}
+          />
+
+          {/* Dark Overlay gradient */}
+          <div
+            className="absolute inset-0 w-full h-full"
+            style={{
+              background: "linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 50%, rgba(10,10,10,1) 100%)"
+            }}
+          />
+
+          {/* Red Vignette */}
+          <div
+            className="absolute inset-0 w-full h-full"
+            style={{
+              background: "radial-gradient(circle, transparent 50%, rgba(224,32,32,0.12) 100%)",
+              boxShadow: "inset 0 0 100px rgba(224,32,32,0.25)"
+            }}
+          />
+        </motion.div>
+
+        {/* Floating Particles (20 dots, opacity 0.4, slow random drift) */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+          {particles.map((p) => (
+            <motion.div
+              key={p.id}
+              className="absolute rounded-full bg-[#E02020]"
+              style={{
+                width: p.size + "px",
+                height: p.size + "px",
+                left: p.x + "%",
+                top: p.y + "%",
+                opacity: 0.4,
+              }}
+              animate={{
+                x: p.tx,
+                y: p.ty,
+              }}
+              transition={{
+                duration: p.duration,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Content Wrapper */}
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 py-20 text-center">
+          <motion.div
+            style={{ y: contentY, opacity: contentOpacity }}
+          >
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-xs uppercase tracking-widest text-[#E02020] font-semibold mb-6 shadow-md">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#E02020] animate-pulse" />
               Banjara Hills · Hyderabad
             </div>
-            <h1 className="font-display text-[28px] sm:text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight break-words">
-              TRAIN HARDER.<br />
-              <span className="text-[#E02020]">LIVE STRONGER.</span>
-            </h1>
-            <p className="mt-6 max-w-2xl mx-auto text-base sm:text-lg text-[#CFCFCF]">
-              Hyderabad's premier strength, conditioning, and lifestyle gym. Built for people
-              who want results — not excuses.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+
+            <motion.h1
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className="font-display text-[32px] sm:text-5xl md:text-7xl lg:text-8xl leading-[1.0] tracking-tight break-words text-white mb-6 select-none"
+              style={{
+                textShadow: "0 2px 10px rgba(0,0,0,0.8), 0 0 40px rgba(224,32,32,0.3)"
+              }}
+            >
+              <div className="block">
+                <motion.span variants={wordVariants} className="inline-block mr-[0.25em]">TRAIN</motion.span>
+                <motion.span variants={wordVariants} className="inline-block">HARDER.</motion.span>
+              </div>
+              <div className="block text-[#E02020]">
+                <motion.span variants={wordVariants} className="inline-block mr-[0.25em]">LIVE</motion.span>
+                <motion.span variants={wordVariants} className="inline-block">STRONGER.</motion.span>
+              </div>
+            </motion.h1>
+
+            <div className="mt-8 mb-10">
+              <p className="max-w-2xl mx-auto text-base sm:text-lg text-[#CFCFCF] bg-black/50 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 inline-block shadow-lg leading-relaxed">
+                Hyderabad's premier strength, conditioning, and lifestyle gym. Built for people
+                who want results — not excuses.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link to="/join" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto bg-[#E02020] hover:bg-[#C41818] h-12 min-h-[44px] px-8 text-base">
+                <Button size="lg" className="w-full sm:w-auto bg-[#E02020] hover:bg-[#C41818] h-12 min-h-[44px] px-8 text-base shadow-lg shadow-[#E02020]/20 hover:shadow-[#E02020]/30 transition-all duration-300">
                   Join Now
                 </Button>
               </Link>
               <Link to="/plans" className="w-full sm:w-auto">
-                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/30 bg-transparent text-white hover:bg-white/5 h-12 min-h-[44px] px-8 text-base">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/30 bg-black/40 backdrop-blur-sm text-white hover:bg-white/5 h-12 min-h-[44px] px-8 text-base transition-colors duration-300">
                   View Plans
                 </Button>
               </Link>
             </div>
           </motion.div>
         </div>
+
+        {/* Scroll Down Chevron */}
+        <motion.div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1 cursor-pointer pointer-events-auto select-none"
+          initial={{ opacity: 1 }}
+          animate={{ opacity: scrolled ? 0 : 1 }}
+          transition={{ duration: 0.3 }}
+          onClick={() => {
+            window.scrollTo({
+              top: window.innerHeight * 0.9,
+              behavior: "smooth",
+            });
+          }}
+        >
+          <span className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-semibold">Scroll Down</span>
+          <motion.div
+            animate={{ y: [0, 8, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+          >
+            <ChevronDown className="h-5 w-5 text-white" />
+          </motion.div>
+        </motion.div>
       </section>
 
       {/* STATS BAR */}
