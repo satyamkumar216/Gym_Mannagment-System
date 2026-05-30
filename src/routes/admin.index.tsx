@@ -6,7 +6,7 @@ import {
   Contact, Bell, TrendingUp, Settings, LogOut, Search, Filter, Check, X,
   AlertCircle, Download, FileText, Send, Plus, CheckCircle2, UserCheck, Edit,
   Trash2, ShieldAlert, ShieldCheck, Printer, Eye, EyeOff, MessageSquare, Share2,
-  ChevronDown, ChevronUp, CheckSquare, Square, Lock, Key, Smartphone, Dumbbell
+  ChevronDown, ChevronUp, CheckSquare, Square, Lock, Key, Smartphone, Dumbbell, Receipt, Fingerprint
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
@@ -39,6 +40,7 @@ interface Member {
   email: string;
   joined: string;
   expiry: string;
+  biometric?: "Registered" | "Not Set";
 }
 
 interface Application {
@@ -75,18 +77,19 @@ interface SystemNotification {
   desc: string;
   time: string;
   type: "warning" | "announcement" | "achievement" | "alert" | "info";
+  read?: boolean;
 }
 
 // Initial dummy members database
 const initialMembers: Member[] = [
-  { name: "Rahul Sharma", memberId: "IG-2024-0042", plan: "Quarterly Premium", status: "Active", location: "Banjara Hills, Hyderabad", mobile: "+91 98765 43210", email: "rahul@gmail.com", joined: "12 Feb 2024", expiry: "15 Aug 2025" },
-  { name: "Priya Patel", memberId: "IG-2024-0071", plan: "Annual Elite", status: "Active", location: "Secunderabad, Hyderabad", mobile: "+91 98765 43211", email: "priya@example.com", joined: "18 Mar 2024", expiry: "15 Mar 2026" },
-  { name: "Arjun Mehta", memberId: "IG-2024-0089", plan: "Monthly Standard", status: "Expiring", statusText: "Expiring in 3 days", location: "Gachibowli, Hyderabad", mobile: "+91 98765 43212", email: "arjun@example.com", joined: "10 Apr 2024", expiry: "31 May 2026" },
-  { name: "Sneha Reddy", memberId: "IG-2024-0103", plan: "Quarterly Premium", status: "Active", location: "Madhapur, Hyderabad", mobile: "+91 98765 43213", email: "sneha@example.com", joined: "05 May 2024", expiry: "05 Aug 2026" },
-  { name: "Vikram Singh", memberId: "IG-2024-0118", plan: "Annual Elite", status: "Active", location: "Jubilee Hills, Hyderabad", mobile: "+91 98765 43214", email: "vikram@example.com", joined: "15 May 2024", expiry: "15 May 2027" },
-  { name: "Kavya Nambiar", memberId: "IG-2024-0134", plan: "Monthly Standard", status: "Expired", statusText: "Expired 5 days ago", location: "Begumpet, Hyderabad", mobile: "+91 98765 43215", email: "kavya@example.com", joined: "12 Jan 2024", expiry: "23 May 2026" },
-  { name: "Rohit Gupta", memberId: "IG-2024-0156", plan: "Quarterly Premium", status: "Pending Approval", location: "Kondapur, Hyderabad", mobile: "+91 98765 43216", email: "rohit@example.com", joined: "28 May 2025", expiry: "28 Aug 2025" },
-  { name: "Meera Joshi", memberId: "IG-2024-0167", plan: "Annual Elite", status: "Pending Payment", location: "Kukatpally, Hyderabad", mobile: "+91 98765 43217", email: "meera@example.com", joined: "27 May 2025", expiry: "27 May 2026" },
+  { name: "Rahul Sharma", memberId: "IG-2024-0042", plan: "Quarterly Premium", status: "Active", location: "Banjara Hills, Hyderabad", mobile: "+91 98765 43210", email: "rahul@gmail.com", joined: "12 Feb 2024", expiry: "15 Aug 2025", biometric: "Registered" },
+  { name: "Priya Patel", memberId: "IG-2024-0071", plan: "Annual Elite", status: "Active", location: "Secunderabad, Hyderabad", mobile: "+91 98765 43211", email: "priya@example.com", joined: "18 Mar 2024", expiry: "15 Mar 2026", biometric: "Registered" },
+  { name: "Arjun Mehta", memberId: "IG-2024-0089", plan: "Monthly Standard", status: "Expiring", statusText: "Expiring in 3 days", location: "Gachibowli, Hyderabad", mobile: "+91 98765 43212", email: "arjun@example.com", joined: "10 Apr 2024", expiry: "31 May 2026", biometric: "Not Set" },
+  { name: "Sneha Reddy", memberId: "IG-2024-0103", plan: "Quarterly Premium", status: "Active", location: "Madhapur, Hyderabad", mobile: "+91 98765 43213", email: "sneha@example.com", joined: "05 May 2024", expiry: "05 Aug 2026", biometric: "Not Set" },
+  { name: "Vikram Singh", memberId: "IG-2024-0118", plan: "Annual Elite", status: "Active", location: "Jubilee Hills, Hyderabad", mobile: "+91 98765 43214", email: "vikram@example.com", joined: "15 May 2024", expiry: "15 May 2027", biometric: "Not Set" },
+  { name: "Kavya Nambiar", memberId: "IG-2024-0134", plan: "Monthly Standard", status: "Expired", statusText: "Expired 5 days ago", location: "Begumpet, Hyderabad", mobile: "+91 98765 43215", email: "kavya@example.com", joined: "12 Jan 2024", expiry: "23 May 2026", biometric: "Registered" },
+  { name: "Rohit Gupta", memberId: "IG-2024-0156", plan: "Quarterly Premium", status: "Pending Approval", location: "Kondapur, Hyderabad", mobile: "+91 98765 43216", email: "rohit@example.com", joined: "28 May 2025", expiry: "28 Aug 2025", biometric: "Not Set" },
+  { name: "Meera Joshi", memberId: "IG-2024-0167", plan: "Annual Elite", status: "Pending Payment", location: "Kukatpally, Hyderabad", mobile: "+91 98765 43217", email: "meera@example.com", joined: "27 May 2025", expiry: "27 May 2026", biometric: "Not Set" },
 ];
 
 // Initial dummy applications ( रोहित & मीरा )
@@ -143,9 +146,9 @@ const initialTransactions: Transaction[] = [
 
 // Initial dummy notifications
 const initialNotifications: SystemNotification[] = [
-  { id: "n-1", title: "Monthly Cleaning Schedule", desc: "Facility maintenance planned for Sunday, 1st June. All check-in logs will be suspended.", time: "1 day ago", type: "alert" },
-  { id: "n-2", title: "New HIIT trainer onboarded", desc: "Trainer Divya Nair added to system. Shift scheduled for 5:30 PM slots.", time: "2 days ago", type: "info" },
-  { id: "n-3", title: "Peak Occupancy Reached", desc: "Occupancy hit 76 members at 7:15 PM on Wednesday. Recommended crowd alerts sent.", time: "3 days ago", type: "warning" },
+  { id: "n-1", title: "Monthly Cleaning Schedule", desc: "Facility maintenance planned for Sunday, 1st June. All check-in logs will be suspended.", time: "1 day ago", type: "alert", read: false },
+  { id: "n-2", title: "New HIIT trainer onboarded", desc: "Trainer Divya Nair added to system. Shift scheduled for 5:30 PM slots.", time: "2 days ago", type: "info", read: false },
+  { id: "n-3", title: "Peak Occupancy Reached", desc: "Occupancy hit 76 members at 7:15 PM on Wednesday. Recommended crowd alerts sent.", time: "3 days ago", type: "warning", read: false },
 ];
 
 function AdminIndex() {
@@ -178,8 +181,74 @@ function AdminIndex() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [planFilter, setPlanFilter] = useState("All");
+  const [biometricFilter, setBiometricFilter] = useState("All");
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [selectedAppForModal, setSelectedAppForModal] = useState<Application | null>(null);
+
+  const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
+  const [modalBTitle, setModalBTitle] = useState("");
+  const [modalBMsg, setModalBMsg] = useState("");
+  const [modalBTarget, setModalBTarget] = useState("all");
+
+  const [rejectAppConfirmOpen, setRejectAppConfirmOpen] = useState(false);
+  const [appToReject, setAppToReject] = useState<Application | null>(null);
+
+  const [rejectPaymentConfirmOpen, setRejectPaymentConfirmOpen] = useState(false);
+  const [paymentToReject, setPaymentToReject] = useState<string | null>(null);
+
+  const [bellOpen, setBellOpen] = useState(false);
+
+  const handleModalBroadcast = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!modalBTitle.trim() || !modalBMsg.trim()) return;
+
+    const newNotif = {
+      id: `n-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: modalBTitle,
+      desc: `[Target: ${modalBTarget.toUpperCase()}] ${modalBMsg}`,
+      time: "Just now",
+      type: "announcement" as const,
+      read: false
+    };
+
+    setNotifications(prev => [newNotif, ...prev]);
+    toast.success(`Broadcast announcement successfully dispatched to ${modalBTarget} members!`);
+    setModalBTitle("");
+    setModalBMsg("");
+    setAnnouncementModalOpen(false);
+  };
+
+  // Keyboard shortcuts event listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in inputs or textareas
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "/") {
+        e.preventDefault();
+        navigate({ to: "/search", search: { q: "" } });
+      } else if (e.key.toLowerCase() === "n") {
+        e.preventDefault();
+        setActiveTab("manual");
+        toast.info("Switched to New Member Registration");
+      } else if (e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setActiveTab("pending");
+        toast.info("Switched to Pending Approvals");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Capacity states
   const [strengthLimit, setStrengthLimit] = useState(40);
@@ -197,8 +266,45 @@ function AdminIndex() {
     }
   }, [navigate]);
 
+  // Synchronize activeTab with URL search parameter "?tab="
   useEffect(() => {
-    const usersStr = localStorage.getItem("registered_users");
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam as AdminTab);
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabParam = params.get("tab");
+    if (activeTab !== "overview") {
+      if (tabParam !== activeTab) {
+        window.history.replaceState({}, "", `/admin?tab=${activeTab}`);
+      }
+    } else if (tabParam) {
+      window.history.replaceState({}, "", "/admin");
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    let usersStr = localStorage.getItem("registered_users");
+    if (!usersStr) {
+      const seedUsers = initialMembers.map(m => ({
+        fullName: m.name,
+        mobile: m.mobile.replace("+91 ", ""),
+        email: m.email,
+        password: "password123",
+        memberId: m.memberId,
+        plan: m.plan.includes("Quarterly") ? "quarterly" : m.plan.includes("Annual") ? "annual" : "monthly",
+        paymentMode: m.status === "Active" || m.status === "Expiring" ? "online" : "gym",
+        status: m.status,
+        biometric: m.biometric || "Registered"
+      }));
+      localStorage.setItem("registered_users", JSON.stringify(seedUsers));
+      usersStr = JSON.stringify(seedUsers);
+    }
+
     if (usersStr) {
       try {
         const users = JSON.parse(usersStr);
@@ -207,13 +313,25 @@ function AdminIndex() {
             name: u.fullName,
             memberId: u.memberId,
             plan: u.plan === "quarterly" ? "Quarterly Premium" : u.plan === "annual" ? "Annual Elite" : "Monthly Standard",
-            status: u.paymentMode === "online" ? "Active" : "Pending Payment",
+            status: u.status || (u.paymentMode === "online" ? "Active" : "Pending Payment"),
             location: "Hyderabad",
             mobile: u.mobile.startsWith("+91") ? u.mobile : `+91 ${u.mobile}`,
             email: u.email,
             joined: "Recently",
-            expiry: u.plan === "quarterly" ? "15 Aug 2025" : u.plan === "annual" ? "15 May 2026" : "30 Jun 2025"
+            expiry: u.plan === "quarterly" ? "15 Aug 2025" : u.plan === "annual" ? "15 May 2026" : "30 Jun 2025",
+            biometric: u.biometric || (["Sneha Reddy", "Vikram Singh", "Arjun Mehta", "Rohit Gupta", "Meera Joshi"].includes(u.fullName) ? "Not Set" : "Registered")
           }));
+
+          setMembers(prev => {
+            const mappedMap = new Map(mapped.map(m => [m.memberId, m]));
+            return prev.map(m => {
+              const fromStorage = mappedMap.get(m.memberId);
+              if (fromStorage) {
+                return { ...m, status: fromStorage.status, biometric: fromStorage.biometric };
+              }
+              return m;
+            });
+          });
 
           setMembers(prev => {
             const existingIds = new Set(prev.map(m => m.memberId));
@@ -236,32 +354,35 @@ function AdminIndex() {
   // Shared state helpers
   const handleApproveApplication = (app: Application) => {
     const newMemberId = `IG-2024-${randomDigits(4)}`;
+    const isOnline = app.paymentMode.includes("Online");
+    const targetStatus = isOnline ? "Active" : "Pending Payment";
     
     // Save to State
     const newMember: Member = {
       name: app.name,
       memberId: newMemberId,
       plan: app.plan === "Quarterly" ? "Quarterly Premium" : app.plan === "Annual" ? "Annual Elite" : "Monthly Standard",
-      status: "Active",
+      status: targetStatus as any,
       location: "Hyderabad",
       mobile: app.mobile,
       email: app.email,
       joined: "Today",
-      expiry: app.plan === "Annual" ? "12 Months" : app.plan === "Quarterly" ? "3 Months" : "1 Month"
+      expiry: app.plan === "Annual" ? "12 Months" : app.plan === "Quarterly" ? "3 Months" : "1 Month",
+      biometric: "Not Set"
     };
 
     setMembers(prev => [newMember, ...prev.filter(m => m.name !== app.name)]);
     setApplications(prev => prev.filter(a => a.id !== app.id));
 
-    // Add paid transaction
+    // Add transaction
     const newTx: Transaction = {
       id: `tx-${randomDigits(4)}`,
       date: "Today",
       name: app.name,
       amount: app.amount,
       plan: app.plan,
-      method: "UPI-GPay",
-      status: "Paid"
+      method: isOnline ? "UPI-GPay" : "Cash",
+      status: isOnline ? "Paid" : "Pending Verify"
     };
     setTransactions(prev => [newTx, ...prev]);
 
@@ -274,37 +395,89 @@ function AdminIndex() {
       password: "password123",
       memberId: newMemberId,
       plan: app.plan === "Quarterly" ? "quarterly" : app.plan === "Annual" ? "annual" : "monthly",
-      paymentMode: "online",
+      paymentMode: isOnline ? "online" : "gym",
+      status: targetStatus,
+      biometric: "Not Set",
       height: app.height || "175",
       weight: app.weight || "70",
       bloodGroup: app.bloodGroup || "O+",
       goals: app.goals || [],
       conditions: app.conditions || [],
-      notes: "Approved online applicant."
+      notes: isOnline ? "Approved online paid applicant." : "Approved offline applicant."
     };
     localStorage.setItem("registered_users", JSON.stringify([...existingUsers, newStorageUser]));
 
-    toast.success(`Approved registration for ${app.name}! ID: ${newMemberId}`);
+    if (isOnline) {
+      toast.success(
+        <div className="space-y-1 text-left">
+          <div className="font-semibold text-white">✅ {app.name} is now an active member!</div>
+          <div className="text-xs text-[#8A8A8A] font-normal leading-relaxed">
+            Payment verified online. Remind them to visit reception to register their fingerprint before their first workout.
+          </div>
+        </div>,
+        { duration: 6000 }
+      );
+    } else {
+      toast.success(`Application reviewed and approved for ${app.name}! Proceed to Verify Payment.`);
+    }
   };
 
   const handleRejectApplication = (app: Application) => {
-    setApplications(prev => prev.filter(a => a.id !== app.id));
-    toast.error(`Rejected registration request for ${app.name}`);
+    const reason = window.prompt(`Enter rejection reason for ${app.name} (optional):`);
+    if (reason === null) return; // Cancelled
+    
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const updated = users.map((u: any) => u.fullName === app.name || u.mobile === app.mobile.replace("+91 ", "").replace(/\D/g, "") ? { ...u, status: "Rejected", rejectionReason: reason || undefined } : u);
+        localStorage.setItem("registered_users", JSON.stringify(updated));
+      } catch (e) {}
+    }
+    
+    setAppToReject(app);
+    setRejectAppConfirmOpen(true);
+  };
+
+  const confirmRejectApplication = () => {
+    if (appToReject) {
+      setApplications(prev => prev.filter(a => a.id !== appToReject.id));
+      toast.error(`Rejected registration request for ${appToReject.name}`);
+      setRejectAppConfirmOpen(false);
+      setAppToReject(null);
+    }
   };
 
   const handleVerifyPayment = (txId: string) => {
     setTransactions(prev =>
       prev.map(t => {
         if (t.id === txId) {
-          toast.success(`Verified payment of ${formatINR(t.amount)} for ${t.name}!`);
+          toast.success(
+            <div className="space-y-1">
+              <div className="font-semibold text-white">✅ {t.name} is now an active member!</div>
+              <div className="text-xs text-[#8A8A8A] font-normal leading-relaxed">
+                Remind them to visit reception to register their fingerprint before their first workout.
+              </div>
+            </div>,
+            { duration: 6000 }
+          );
           setMembers(mList =>
             mList.map(m => {
               if (m.name === t.name) {
-                return { ...m, status: "Active" };
+                return { ...m, status: "Active", biometric: "Not Set" };
               }
               return m;
             })
           );
+          // Update in registered_users in localStorage
+          const usersStr = localStorage.getItem("registered_users");
+          if (usersStr) {
+            try {
+              const users = JSON.parse(usersStr);
+              const updated = users.map((u: any) => u.fullName === t.name ? { ...u, status: "Active", paymentMode: "online", biometric: "Not Set" } : u);
+              localStorage.setItem("registered_users", JSON.stringify(updated));
+            } catch (e) {}
+          }
           return { ...t, status: "Paid" };
         }
         return t;
@@ -313,8 +486,17 @@ function AdminIndex() {
   };
 
   const handleRejectPayment = (txId: string) => {
-    setTransactions(prev => prev.filter(t => t.id !== txId));
-    toast.error(`Rejected payment record transaction ${txId}`);
+    setPaymentToReject(txId);
+    setRejectPaymentConfirmOpen(true);
+  };
+
+  const confirmRejectPayment = () => {
+    if (paymentToReject) {
+      setTransactions(prev => prev.filter(t => t.id !== paymentToReject));
+      toast.error(`Rejected payment record transaction ${paymentToReject}`);
+      setRejectPaymentConfirmOpen(false);
+      setPaymentToReject(null);
+    }
   };
 
   // Submit manual registration
@@ -435,12 +617,17 @@ function AdminIndex() {
         planFilter === "All" ||
         m.plan.toLowerCase().includes(planFilter.toLowerCase());
 
-      return matchesSearch && matchesStatus && matchesPlan;
+      const matchesBiometric =
+        biometricFilter === "All" ||
+        (biometricFilter === "Registered" && m.biometric === "Registered") ||
+        (biometricFilter === "Not Set" && m.biometric === "Not Set");
+
+      return matchesSearch && matchesStatus && matchesPlan && matchesBiometric;
     });
-  }, [members, searchQuery, statusFilter, planFilter]);
+  }, [members, searchQuery, statusFilter, planFilter, biometricFilter]);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col md:flex-row relative font-sans">
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col md:flex-row relative font-sans overflow-x-hidden">
       
       {/* Mobile Control Header */}
       <header className="md:hidden flex items-center justify-between bg-[#0A0A0A] border-b border-[#1A1A1A] px-5 py-4 shrink-0 z-20">
@@ -451,17 +638,18 @@ function AdminIndex() {
           <span className="font-display text-lg tracking-wide uppercase font-bold text-white">Staff Portal</span>
         </div>
         <div className="flex items-center gap-4">
-          <button onClick={() => setActiveTab("notifications")} className="relative">
-            <Bell className="h-5 w-5 text-[#8A8A8A]" />
-            {notifications.length > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-[#E02020] text-white text-[8px] flex items-center justify-center font-bold">
-                {notifications.length}
+          <button onClick={() => setBellOpen(!bellOpen)} className="relative p-1 text-[#8A8A8A] hover:text-white transition-colors cursor-pointer">
+            <Bell className="h-5 w-5" />
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-[#E02020] text-white text-[8px] flex items-center justify-center font-bold">
+                {notifications.filter(n => !n.read).length}
               </span>
             )}
           </button>
           <button
+            type="button"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="p-1 rounded-md text-[#8A8A8A] hover:text-white"
+            className="touch-target flex items-center justify-center rounded-md text-[#8A8A8A] hover:text-white"
             aria-label="Toggle menu"
           >
             {menuOpen ? <X className="h-6 w-6" /> : <MenuIcon className="h-6 w-6" />}
@@ -567,6 +755,15 @@ function AdminIndex() {
               )}
             </div>
 
+            {/* Biometric & Access */}
+            <button
+              onClick={() => { navigate({ to: "/admin/biometric" }); setMenuOpen(false); }}
+              className="w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider text-[#8A8A8A] hover:text-white hover:bg-[#111111] transition-all"
+            >
+              <Fingerprint className="h-4 w-4 mr-3 shrink-0 text-[#E02020]/80" />
+              <span>Biometric & Access</span>
+            </button>
+
             {/* Attendance & Access */}
             <button
               onClick={() => { setActiveTab("attendance"); setMenuOpen(false); }}
@@ -637,17 +834,30 @@ function AdminIndex() {
               <span>Staff Management</span>
             </button>
 
-            {/* Reports */}
+            {/* Grace Period Settings */}
             <button
-              onClick={() => { setActiveTab("reports"); setMenuOpen(false); }}
-              className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-                activeTab === "reports"
-                  ? "bg-[#E02020] text-white shadow-lg shadow-[#E02020]/15"
-                  : "text-[#8A8A8A] hover:text-white hover:bg-[#111111]"
-              )}
+              onClick={() => { navigate({ to: "/admin/grace" }); setMenuOpen(false); }}
+              className="w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider text-[#8A8A8A] hover:text-white hover:bg-[#111111] transition-all"
             >
-              <TrendingUp className="h-4 w-4 mr-3 shrink-0" />
+              <Clock className="h-4 w-4 mr-3 shrink-0 text-[#E02020]/80" />
+              <span>Grace Period Settings</span>
+            </button>
+
+            {/* Bulk SMS Composer */}
+            <button
+              onClick={() => { navigate({ to: "/admin/sms" }); setMenuOpen(false); }}
+              className="w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider text-[#8A8A8A] hover:text-white hover:bg-[#111111] transition-all"
+            >
+              <MessageSquare className="h-4 w-4 mr-3 shrink-0 text-[#E02020]/80" />
+              <span>Bulk SMS Composer</span>
+            </button>
+
+            {/* Growth Reports */}
+            <button
+              onClick={() => { navigate({ to: "/admin/reports" }); setMenuOpen(false); }}
+              className="w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider text-[#8A8A8A] hover:text-white hover:bg-[#111111] transition-all"
+            >
+              <TrendingUp className="h-4 w-4 mr-3 shrink-0 text-[#E02020]/80" />
               <span>Growth Reports</span>
             </button>
 
@@ -706,14 +916,14 @@ function AdminIndex() {
           <div className="flex items-center gap-6">
             {/* Notifications Bell */}
             <button
-              onClick={() => setActiveTab("notifications")}
-              className="relative p-2 text-[#8A8A8A] hover:text-white hover:bg-[#111111] rounded-lg transition-colors"
+              onClick={() => setBellOpen(!bellOpen)}
+              className="relative p-2 text-[#8A8A8A] hover:text-white hover:bg-[#111111] rounded-lg transition-colors cursor-pointer"
               title="System Alerts"
             >
               <Bell className="h-5 w-5" />
-              {notifications.length > 0 && (
+              {notifications.filter(n => !n.read).length > 0 && (
                 <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-[#E02020] text-white text-[8px] flex items-center justify-center font-bold border-2 border-[#0A0A0A]">
-                  {notifications.length}
+                  {notifications.filter(n => !n.read).length}
                 </span>
               )}
             </button>
@@ -730,6 +940,84 @@ function AdminIndex() {
             </div>
           </div>
         </header>
+
+        {/* Notifications Dropdown Panel */}
+        <AnimatePresence>
+          {bellOpen && (
+            <>
+              <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setBellOpen(false)} />
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-4 md:right-8 top-[60px] md:top-[70px] w-80 bg-[#111111] border border-[#222222] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col text-xs"
+              >
+                <div className="bg-[#0A0A0A] border-b border-[#222222] px-4 py-3 flex items-center justify-between">
+                  <h3 className="font-display text-sm text-white font-bold uppercase tracking-wider">System Alerts</h3>
+                  <button
+                    onClick={() => {
+                      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                      toast.success("All notifications marked as read");
+                    }}
+                    className="text-[10px] text-[#E02020] hover:underline font-bold uppercase cursor-pointer"
+                  >
+                    Mark all read
+                  </button>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto divide-y divide-[#222222]">
+                  {notifications.slice(0, 5).map((n) => {
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+                          setActiveTab("notifications");
+                          setBellOpen(false);
+                        }}
+                        className={cn(
+                          "p-3.5 space-y-1 transition-colors cursor-pointer text-left",
+                          n.read ? "bg-transparent hover:bg-[#1A1A1A]/30" : "bg-[#E02020]/5 hover:bg-[#E02020]/10"
+                        )}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className={cn(
+                            "h-7 w-7 rounded-md border flex items-center justify-center shrink-0 mt-0.5 border-[#222222] bg-[#111111]"
+                          )}>
+                            <Bell className="h-3.5 w-3.5 text-[#E02020]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-white leading-tight break-words pr-2">{n.title}</p>
+                            <p className="text-[10px] text-[#8A8A8A] mt-0.5 line-clamp-2 leading-relaxed">{n.desc}</p>
+                            <span className="text-[9px] text-[#555555] block mt-1">{n.time}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {notifications.length === 0 && (
+                    <div className="p-8 text-center text-xs text-[#555555]">
+                      No alerts
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-[#0A0A0A] border-t border-[#222222] px-4 py-2.5 text-center">
+                  <button
+                    onClick={() => {
+                      setActiveTab("notifications");
+                      setBellOpen(false);
+                    }}
+                    className="text-xs text-[#E02020] hover:underline font-bold uppercase tracking-wide cursor-pointer"
+                  >
+                    View all alerts
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
 
         {/* Content Page wrapper */}
         <main className="p-6 md:p-8 space-y-6 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
@@ -753,6 +1041,9 @@ function AdminIndex() {
                   strengthCount={strengthCount}
                   cardioCount={cardioCount}
                   yogaCount={yogaCount}
+                  members={members}
+                  setBiometricFilter={setBiometricFilter}
+                  onSendAnnouncementClick={() => setAnnouncementModalOpen(true)}
                 />
               )}
               {activeTab === "members" && (
@@ -764,6 +1055,8 @@ function AdminIndex() {
                   setStatusFilter={setStatusFilter}
                   planFilter={planFilter}
                   setPlanFilter={setPlanFilter}
+                  biometricFilter={biometricFilter}
+                  setBiometricFilter={setBiometricFilter}
                   selectedMemberIds={selectedMemberIds}
                   setSelectedMemberIds={setSelectedMemberIds}
                   setMembers={setMembers}
@@ -831,10 +1124,132 @@ function AdminIndex() {
           </AnimatePresence>
         </main>
 
+        {/* Keyboard Shortcuts Floating Pill */}
+        <div className="fixed bottom-4 left-4 z-40 hidden md:block">
+          <div className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#111111]/90 border border-[#222222] text-[#8A8A8A] text-[10px] font-mono shadow-xl backdrop-blur-md select-none hover:border-[#E02020]/25 transition-colors">
+            <span className="flex items-center gap-1">
+              Press <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#333] text-white text-[9px] font-bold font-sans">/</kbd> to search
+            </span>
+            <span className="text-[#333]">|</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#333] text-white text-[9px] font-bold font-sans">N</kbd> New
+            </span>
+            <span className="text-[#333]">|</span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-[#0A0A0A] border border-[#333] text-white text-[9px] font-bold font-sans">A</kbd> Appr
+            </span>
+          </div>
+        </div>
+
         <footer className="border-t border-[#1A1A1A] bg-[#0A0A0A]/30 py-4 px-8 text-xs text-[#555555] text-center md:text-left shrink-0">
           IronForge Staff Control Panel. Unauthorized access strictly prohibited. Registered IP log recorded.
         </footer>
       </div>
+
+      <ConfirmationModal
+        isOpen={rejectAppConfirmOpen}
+        onClose={() => {
+          setRejectAppConfirmOpen(false);
+          setAppToReject(null);
+        }}
+        onConfirm={confirmRejectApplication}
+        title="Reject Application?"
+        description={appToReject ? `Are you sure you want to reject the application from ${appToReject.name}? This action cannot be undone.` : ""}
+        confirmText="Reject"
+        cancelText="Cancel"
+      />
+
+      <ConfirmationModal
+        isOpen={rejectPaymentConfirmOpen}
+        onClose={() => {
+          setRejectPaymentConfirmOpen(false);
+          setPaymentToReject(null);
+        }}
+        onConfirm={confirmRejectPayment}
+        title="Reject Payment?"
+        description={paymentToReject ? `Are you sure you want to reject transaction ID ${paymentToReject}? This record will be permanently marked as rejected.` : ""}
+        confirmText="Reject"
+        cancelText="Cancel"
+      />
+
+      {/* Compose Announcement Modal */}
+      {announcementModalOpen && (
+        <div className="modal-overlay z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md rounded-xl bg-[#111111] border border-[#222222] overflow-hidden shadow-2xl text-xs"
+          >
+            <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">System Alert Broadcast</span>
+                <h3 className="font-display text-xl text-white mt-0.5 uppercase font-bold">Send Announcement</h3>
+              </div>
+              <button onClick={() => setAnnouncementModalOpen(false)} className="text-[#8A8A8A] hover:text-white transition-colors">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleModalBroadcast} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="modal-btitle" className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Announcement Title</Label>
+                <Input
+                  id="modal-btitle"
+                  placeholder="HIIT Morning Batch update, Facility maintenance..."
+                  value={modalBTitle}
+                  onChange={(e) => setModalBTitle(e.target.value)}
+                  required
+                  className="bg-[#111111] border-[#222222] h-10 text-white"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Audience Target</Label>
+                <Select value={modalBTarget} onValueChange={setModalBTarget}>
+                  <SelectTrigger className="bg-[#111111] border-[#222222] text-white text-xs h-10">
+                    <SelectValue placeholder="All Members" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#111111] border-[#222222] text-white">
+                    <SelectItem value="all">All Members (Broadcast)</SelectItem>
+                    <SelectItem value="active">Active Members Only</SelectItem>
+                    <SelectItem value="expiring">Expiring within 7 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="modal-bmsg" className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Message Details</Label>
+                <textarea
+                  id="modal-bmsg"
+                  rows={4}
+                  placeholder="Enter details visible on member dashboard boxes..."
+                  value={modalBMsg}
+                  onChange={(e) => setModalBMsg(e.target.value)}
+                  required
+                  className="w-full rounded-md border border-[#222222] bg-[#111111] p-3 text-white placeholder-[#555555] focus:outline-none focus:ring-1 focus:ring-[#E02020]"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3 justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setAnnouncementModalOpen(false)}
+                  className="text-[#8A8A8A] hover:text-white h-10 text-xs font-bold uppercase"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-10 uppercase text-xs px-6"
+                >
+                  <Send className="h-4 w-4 mr-2" /> Dispatch
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
     </div>
   );
@@ -863,7 +1278,7 @@ function formatINR(n: number) {
 // ================= PAGE 1: OVERVIEW DASHBOARD =================
 function TabOverview({
   stats, applications, transactions, handleApprove, handleReject, setActiveTab,
-  strengthCount, cardioCount, yogaCount
+  strengthCount, cardioCount, yogaCount, members, setBiometricFilter, onSendAnnouncementClick
 }: {
   stats: any;
   applications: Application[];
@@ -874,7 +1289,18 @@ function TabOverview({
   strengthCount: number;
   cardioCount: number;
   yogaCount: number;
+  members: Member[];
+  setBiometricFilter: (s: string) => void;
+  onSendAnnouncementClick: () => void;
 }) {
+  const unregisteredActiveCount = useMemo(() => {
+    return members.filter(m => (m.status === "Active" || m.status === "Expiring") && m.biometric === "Not Set").length;
+  }, [members]);
+
+  const pendingPaymentsCount = useMemo(() => {
+    return transactions.filter(t => t.status === "Pending Verify").length;
+  }, [transactions]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -882,31 +1308,130 @@ function TabOverview({
         <p className="text-sm text-[#8A8A8A] mt-1">Hello, Gaurav. Review real-time performance grids.</p>
       </div>
 
+      {unregisteredActiveCount > 0 && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in text-xs">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+              <ShieldAlert className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-semibold text-white">⚠️ {unregisteredActiveCount} active members have not registered their biometric yet</p>
+              <p className="text-[#8A8A8A] mt-0.5">Members cannot pass turnstile gate check-in without fingerprint credentials.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setActiveTab("members");
+              setBiometricFilter("Not Set");
+            }}
+            className="text-amber-500 hover:text-amber-400 font-bold uppercase tracking-wider transition-colors hover:underline shrink-0"
+          >
+            View Members &rarr;
+          </button>
+        </div>
+      )}
+
       {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 text-center">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 text-center min-w-0">
           <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Total Members</span>
           <div className="font-display text-3xl font-bold text-white mt-1">{stats.total}</div>
         </div>
         <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 text-center">
-          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Active Members</span>
+          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-semibold">Active Members</span>
           <div className="font-display text-3xl font-bold text-emerald-400 mt-1">{stats.active}</div>
         </div>
         <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 text-center">
-          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Expiring 7d</span>
+          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-semibold">Expiring 7d</span>
           <div className="font-display text-3xl font-bold text-amber-500 mt-1">{stats.expiring}</div>
         </div>
         <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 text-center">
-          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Revenue This Month</span>
+          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-semibold">Revenue This Month</span>
           <div className="font-display text-2xl font-bold text-white mt-2">{formatINR(stats.revenue)}</div>
         </div>
         <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 text-center">
-          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Today's Attendance</span>
+          <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-semibold">Today's Attendance</span>
           <div className="font-display text-3xl font-bold text-white mt-1">{stats.checkInsToday}</div>
         </div>
         <div className="rounded-xl border border-[#222222] bg-[#E02020]/5 border-dashed p-4 text-center">
           <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">Live Occupancy</span>
           <div className="font-display text-3xl font-bold text-[#E02020] mt-1">{stats.liveNow}</div>
+        </div>
+      </div>
+
+      {/* Dashboard Quick Actions */}
+      <div className="space-y-3">
+        <h3 className="font-display text-xs tracking-widest text-[#8A8A8A] uppercase font-bold">Dashboard Quick Actions</h3>
+        <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Add New Member */}
+          <div
+            onClick={() => setActiveTab("manual")}
+            className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 flex flex-col justify-between cursor-pointer hover:border-[#E02020]/50 transition-all hover:scale-[1.02] active:scale-[0.98] select-none h-28 group"
+          >
+            <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center text-[#E02020] shrink-0 border border-red-500/15 group-hover:bg-[#E02020] group-hover:text-white transition-all">
+              <UserCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-display text-sm font-bold text-white tracking-wide uppercase group-hover:text-[#E02020] transition-colors">+ Add New Member</div>
+              <p className="text-[10px] text-[#8A8A8A] mt-0.5">Register manual walk-in member</p>
+            </div>
+          </div>
+
+          {/* Pending Approvals */}
+          <div
+            onClick={() => setActiveTab("pending")}
+            className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 flex flex-col justify-between cursor-pointer hover:border-[#E02020]/50 transition-all hover:scale-[1.02] active:scale-[0.98] select-none h-28 group relative"
+          >
+            <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0 border border-amber-500/15 group-hover:bg-amber-500 group-hover:text-[#0A0A0A] transition-all">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            {applications.length > 0 && (
+              <span className="absolute top-4 right-4 bg-[#E02020] text-white text-[10px] h-5 w-5 rounded-full flex items-center justify-center font-bold animate-pulse">
+                {applications.length}
+              </span>
+            )}
+            <div>
+              <div className="font-display text-sm font-bold text-white tracking-wide uppercase group-hover:text-amber-500 transition-colors">
+                ✓ Pending Approvals ({applications.length})
+              </div>
+              <p className="text-[10px] text-[#8A8A8A] mt-0.5">Approve pending memberships</p>
+            </div>
+          </div>
+
+          {/* Verify Cash Payments */}
+          <div
+            onClick={() => setActiveTab("pending-payments")}
+            className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 flex flex-col justify-between cursor-pointer hover:border-[#E02020]/50 transition-all hover:scale-[1.02] active:scale-[0.98] select-none h-28 group relative"
+          >
+            <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 shrink-0 border border-blue-500/15 group-hover:bg-blue-500 group-hover:text-white transition-all">
+              <Receipt className="h-5 w-5" />
+            </div>
+            {pendingPaymentsCount > 0 && (
+              <span className="absolute top-4 right-4 bg-amber-500 text-[#0A0A0A] text-[10px] h-5 w-5 rounded-full flex items-center justify-center font-bold">
+                {pendingPaymentsCount}
+              </span>
+            )}
+            <div>
+              <div className="font-display text-sm font-bold text-white tracking-wide uppercase group-hover:text-blue-400 transition-colors">
+                💳 Verify Cash Payments ({pendingPaymentsCount})
+              </div>
+              <p className="text-[10px] text-[#8A8A8A] mt-0.5">Confirm manual payment receipts</p>
+            </div>
+          </div>
+
+          {/* Send Announcement */}
+          <div
+            onClick={onSendAnnouncementClick}
+            className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 flex flex-col justify-between cursor-pointer hover:border-[#E02020]/50 transition-all hover:scale-[1.02] active:scale-[0.98] select-none h-28 group"
+          >
+            <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0 border border-emerald-500/15 group-hover:bg-emerald-500 group-hover:text-[#0A0A0A] transition-all">
+              <Bell className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="font-display text-sm font-bold text-white tracking-wide uppercase group-hover:text-emerald-400 transition-colors">📢 Send Announcement</div>
+              <p className="text-[10px] text-[#8A8A8A] mt-0.5">Broadcast alert to member dashboards</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1012,8 +1537,8 @@ function TabOverview({
             </div>
 
             {applications.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+              <div className="overflow-x-auto -mx-px">
+                <table className="w-full min-w-[540px] text-left border-collapse text-xs text-[#CFCFCF]">
                   <thead>
                     <tr className="border-b border-[#1A1A1A] bg-[#0A0A0A] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
                       <th className="px-6 py-3.5">Name</th>
@@ -1071,8 +1596,8 @@ function TabOverview({
                 View Ledger
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+            <div className="overflow-x-auto -mx-px">
+              <table className="w-full min-w-[600px] text-left border-collapse text-xs text-[#CFCFCF]">
                 <thead>
                   <tr className="border-b border-[#1A1A1A] bg-[#0A0A0A] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
                     <th className="px-6 py-3">Date</th>
@@ -1167,7 +1692,8 @@ function TabOverview({
 // ================= PAGE 2: ALL MEMBERS =================
 function TabAllMembers({
   filteredMembers, searchQuery, setSearchQuery, statusFilter, setStatusFilter,
-  planFilter, setPlanFilter, selectedMemberIds, setSelectedMemberIds, setMembers
+  planFilter, setPlanFilter, biometricFilter, setBiometricFilter,
+  selectedMemberIds, setSelectedMemberIds, setMembers
 }: {
   filteredMembers: Member[];
   searchQuery: string;
@@ -1176,11 +1702,50 @@ function TabAllMembers({
   setStatusFilter: (s: string) => void;
   planFilter: string;
   setPlanFilter: (s: string) => void;
+  biometricFilter: string;
+  setBiometricFilter: (s: string) => void;
   selectedMemberIds: string[];
   setSelectedMemberIds: React.Dispatch<React.SetStateAction<string[]>>;
   setMembers: React.Dispatch<React.SetStateAction<Member[]>>;
 }) {
   const navigate = useNavigate();
+  const [activeDropdownMemberId, setActiveDropdownMemberId] = useState<string | null>(null);
+  const [biometricModalMember, setBiometricModalMember] = useState<Member | null>(null);
+
+  const handleRemoveBiometric = (memberId: string) => {
+    setMembers(prev => prev.map(m => m.memberId === memberId ? { ...m, biometric: "Not Set" } : m));
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const updated = users.map((u: any) => u.memberId === memberId ? { ...u, biometric: "Not Set" } : u);
+        localStorage.setItem("registered_users", JSON.stringify(updated));
+      } catch (e) {}
+    }
+
+    // Write activity log
+    const logsStr = localStorage.getItem(`activity_logs_${memberId}`);
+    let logs = [];
+    if (logsStr) {
+      try { logs = JSON.parse(logsStr); } catch (e) {}
+    } else {
+      logs = [
+        { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
+        { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+        { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+        { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+        { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+      ];
+    }
+    const newEntry = {
+      title: "Biometric removed",
+      date: "29 May 2025",
+      desc: "Biometric access removed — 29 May 2025 — by Gaurav Mehta"
+    };
+    localStorage.setItem(`activity_logs_${memberId}`, JSON.stringify([newEntry, ...logs]));
+
+    toast.error("Biometric access removed");
+  };
 
   // Toggle selection
   const handleSelectAll = (checked: boolean) => {
@@ -1216,15 +1781,60 @@ function TabAllMembers({
   };
 
   // Row operations
-  const handleRowAction = (id: string, action: "suspend" | "renew" | "edit") => {
+  const handleRowAction = (id: string, action: "suspend" | "renew" | "edit" | "approve" | "verify_payment") => {
     if (action === "suspend") {
       setMembers(prev => prev.map(m => m.memberId === id ? { ...m, status: "Suspended" } : m));
+      // Update in registered_users in localStorage
+      const usersStr = localStorage.getItem("registered_users");
+      if (usersStr) {
+        try {
+          const users = JSON.parse(usersStr);
+          const updated = users.map((u: any) => u.memberId === id ? { ...u, status: "Suspended" } : u);
+          localStorage.setItem("registered_users", JSON.stringify(updated));
+        } catch (e) {}
+      }
       toast.error(`Suspended member ${id}`);
     } else if (action === "renew") {
       setMembers(prev => prev.map(m => m.memberId === id ? { ...m, status: "Active", expiry: "31 Dec 2026" } : m));
+      // Update in registered_users in localStorage
+      const usersStr = localStorage.getItem("registered_users");
+      if (usersStr) {
+        try {
+          const users = JSON.parse(usersStr);
+          const updated = users.map((u: any) => u.memberId === id ? { ...u, status: "Active" } : u);
+          localStorage.setItem("registered_users", JSON.stringify(updated));
+        } catch (e) {}
+      }
       toast.success(`Renewed member ${id} until 31 Dec 2026`);
     } else if (action === "edit") {
       toast.info(`Profile editor for ${id} loaded (Simulation)`);
+    } else if (action === "approve" || action === "verify_payment") {
+      setMembers(prev => prev.map(m => m.memberId === id ? { ...m, status: "Active", biometric: "Not Set" } : m));
+      // Update in registered_users in localStorage
+      const usersStr = localStorage.getItem("registered_users");
+      let memberName = id;
+      if (usersStr) {
+        try {
+          const users = JSON.parse(usersStr);
+          const updated = users.map((u: any) => {
+            if (u.memberId === id) {
+              memberName = u.fullName;
+              return { ...u, status: "Active", biometric: "Not Set" };
+            }
+            return u;
+          });
+          localStorage.setItem("registered_users", JSON.stringify(updated));
+        } catch (e) {}
+      }
+      toast.success(
+        <div className="space-y-1 text-left">
+          <div className="font-semibold text-white">✅ {memberName} is now active!</div>
+          <div className="text-xs text-[#8A8A8A] font-normal leading-relaxed">
+            Status updated to Active. Ask them to place their finger on the device to register biometric.
+          </div>
+        </div>,
+        { duration: 6000 }
+      );
     }
   };
 
@@ -1240,6 +1850,7 @@ function TabAllMembers({
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8A8A8A]" />
           <Input
+            id="admin-search-input"
             placeholder="Search name, member ID, phone, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -1274,6 +1885,20 @@ function TabAllMembers({
               <SelectItem value="Standard">Monthly Standard</SelectItem>
               <SelectItem value="Premium">Quarterly Premium</SelectItem>
               <SelectItem value="Elite">Annual Elite</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Biometric Filter */}
+        <div className="w-full sm:w-44">
+          <Select value={biometricFilter} onValueChange={setBiometricFilter}>
+            <SelectTrigger className="bg-[#0A0A0A] border-[#222222] h-11 text-white text-xs">
+              <SelectValue placeholder="All Biometric" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#111111] border-[#222222] text-white">
+              <SelectItem value="All">All Biometric</SelectItem>
+              <SelectItem value="Registered">✅ Registered</SelectItem>
+              <SelectItem value="Not Set">❌ Not Set</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1313,11 +1938,11 @@ function TabAllMembers({
 
       {/* Directory Data Table */}
       <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+        <div className="overflow-x-auto -mx-px">
+          <table className="w-full min-w-[520px] text-left border-collapse text-xs text-[#CFCFCF] table-sticky-first">
             <thead>
               <tr className="border-b border-[#1A1A1A] bg-[#0C0C0C] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
-                <th className="px-6 py-4 w-12 text-center">
+                <th className="px-4 sm:px-6 py-4 w-12 text-center hide-col-mobile">
                   <input
                     type="checkbox"
                     checked={filteredMembers.length > 0 && selectedMemberIds.length === filteredMembers.length}
@@ -1325,13 +1950,14 @@ function TabAllMembers({
                     className="accent-[#E02020] h-3.5 w-3.5 rounded border-[#222] bg-[#111]"
                   />
                 </th>
-                <th className="px-6 py-4">Name / Contact</th>
-                <th className="px-6 py-4">Member ID</th>
-                <th className="px-6 py-4">Plan Selected</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Joined</th>
-                <th className="px-6 py-4">Expiry</th>
-                <th className="px-6 py-4 text-center">Actions</th>
+                <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Name / Contact</th>
+                <th className="px-4 sm:px-6 py-4 hide-col-mobile whitespace-nowrap">Member ID</th>
+                <th className="px-4 sm:px-6 py-4 hide-col-mobile whitespace-nowrap">Plan</th>
+                <th className="px-4 sm:px-6 py-4 whitespace-nowrap">Status</th>
+                <th className="px-4 sm:px-6 py-4 hide-col-mobile whitespace-nowrap">Joined</th>
+                <th className="px-4 sm:px-6 py-4 hide-col-mobile whitespace-nowrap">Expiry</th>
+                <th className="px-4 sm:px-6 py-4 hide-col-mobile whitespace-nowrap">Biometric</th>
+                <th className="px-4 sm:px-6 py-4 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#161616]">
@@ -1340,7 +1966,7 @@ function TabAllMembers({
                 const initials = m.name.split(" ").map(n => n[0]).slice(0, 2).join("");
                 return (
                   <tr key={m.memberId} className={cn("hover:bg-[#111111]/80 transition-colors", isSelected && "bg-[#E02020]/5")}>
-                    <td className="px-6 py-3.5 text-center">
+                    <td className="px-4 sm:px-6 py-3.5 text-center hide-col-mobile">
                       <input
                         type="checkbox"
                         checked={isSelected}
@@ -1348,7 +1974,7 @@ function TabAllMembers({
                         className="accent-[#E02020] h-3.5 w-3.5 rounded border-[#222] bg-[#111]"
                       />
                     </td>
-                    <td className="px-6 py-3.5">
+                    <td className="px-4 sm:px-6 py-3.5 min-w-[160px]">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-[#E02020] flex items-center justify-center font-bold text-white text-xs">
                           {initials}
@@ -1359,11 +1985,11 @@ function TabAllMembers({
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 font-mono text-white font-semibold cursor-pointer" onClick={() => navigate({ to: `/admin/members/${m.memberId}` })}>
+                    <td className="px-4 sm:px-6 py-3.5 font-mono text-white font-semibold cursor-pointer hide-col-mobile" onClick={() => navigate({ to: `/admin/members/${m.memberId}` })}>
                       {m.memberId}
                     </td>
-                    <td className="px-6 py-3.5 uppercase font-medium">{m.plan}</td>
-                    <td className="px-6 py-3.5">
+                    <td className="px-4 sm:px-6 py-3.5 uppercase font-medium hide-col-mobile">{m.plan}</td>
+                    <td className="px-4 sm:px-6 py-3.5">
                       <Badge
                         className={cn(
                           "text-[9px] font-bold uppercase tracking-wider py-0.5 px-2",
@@ -1377,8 +2003,61 @@ function TabAllMembers({
                         {m.statusText || m.status}
                       </Badge>
                     </td>
-                    <td className="px-6 py-3.5 text-[#8A8A8A]">{m.joined}</td>
-                    <td className="px-6 py-3.5 text-[#8A8A8A]">{m.expiry}</td>
+                    <td className="px-4 sm:px-6 py-3.5 text-[#8A8A8A] hide-col-mobile">{m.joined}</td>
+                    <td className="px-4 sm:px-6 py-3.5 text-[#8A8A8A] hide-col-mobile">{m.expiry}</td>
+                    <td className="px-4 sm:px-6 py-3.5 relative hide-col-mobile">
+                      {m.biometric === "Registered" ? (
+                        <div className="relative inline-block">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveDropdownMemberId(activeDropdownMemberId === m.memberId ? null : m.memberId);
+                            }}
+                            className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full flex items-center gap-1 hover:bg-emerald-500/20 transition-all cursor-pointer"
+                          >
+                            <span>✅ Registered</span>
+                            <ChevronDown className="h-3 w-3 text-emerald-400" />
+                          </button>
+                          {activeDropdownMemberId === m.memberId && (
+                            <>
+                              <div className="fixed inset-0 z-10" onClick={() => setActiveDropdownMemberId(null)} />
+                              <div className="absolute left-0 mt-1 w-48 rounded-lg bg-[#111111] border border-[#222222] py-1 shadow-xl z-20 animate-fade-in text-[11px] text-left">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownMemberId(null);
+                                    setBiometricModalMember(m);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-[#CFCFCF] hover:bg-[#E02020] hover:text-white transition-colors uppercase font-bold"
+                                >
+                                  Re-register Biometric
+                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDropdownMemberId(null);
+                                    handleRemoveBiometric(m.memberId);
+                                  }}
+                                  className="w-full text-left px-3 py-2 text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-colors border-t border-[#1A1A1A] uppercase font-bold"
+                                >
+                                  Remove Biometric Access
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setBiometricModalMember(m);
+                          }}
+                          className="bg-red-500/10 text-red-500 border border-red-500/20 text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full hover:bg-red-500/20 transition-all cursor-pointer"
+                        >
+                          ❌ Not Set
+                        </button>
+                      )}
+                    </td>
                     <td className="px-6 py-3.5">
                       <div className="flex items-center justify-center gap-1.5">
                         <Button
@@ -1397,7 +2076,25 @@ function TabAllMembers({
                         >
                           <Edit className="h-3 w-3" />
                         </Button>
-                        {m.status !== "Suspended" ? (
+                        {m.status === "Pending Approval" ? (
+                          <Button
+                            size="sm"
+                            onClick={() => handleRowAction(m.memberId, "approve")}
+                            className="bg-transparent text-emerald-400 border border-emerald-950 hover:bg-emerald-950/20 h-7 px-2.5 text-[9px] uppercase font-bold"
+                            title="Approve Member"
+                          >
+                            Approve
+                          </Button>
+                        ) : m.status === "Pending Payment" ? (
+                          <Button
+                            size="sm"
+                            onClick={() => handleRowAction(m.memberId, "verify_payment")}
+                            className="bg-transparent text-blue-400 border border-blue-950 hover:bg-blue-950/20 h-7 px-2 text-[9px] uppercase font-bold"
+                            title="Verify Payment"
+                          >
+                            Verify Payment
+                          </Button>
+                        ) : m.status !== "Suspended" ? (
                           <Button
                             size="sm"
                             onClick={() => handleRowAction(m.memberId, "suspend")}
@@ -1423,7 +2120,7 @@ function TabAllMembers({
               })}
               {filteredMembers.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-xs text-[#555555]">
+                  <td colSpan={9} className="py-8 text-center text-xs text-[#555555]">
                     No members match search criteria.
                   </td>
                 </tr>
@@ -1432,6 +2129,99 @@ function TabAllMembers({
           </table>
         </div>
       </div>
+
+      {/* Biometric Registration Modal */}
+      {biometricModalMember && (
+        <div className="modal-overlay z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md rounded-xl bg-[#111111] border border-[#222222] overflow-hidden"
+          >
+            <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">ZKTeco Hardware Integration</span>
+                <h3 className="font-display text-xl text-white mt-0.5 uppercase font-bold">Register Biometric — {biometricModalMember.name}</h3>
+              </div>
+              <button onClick={() => setBiometricModalMember(null)} className="text-[#8A8A8A] hover:text-white">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs">
+              {/* Member card inside modal */}
+              <div className="p-4 rounded-xl bg-[#0A0A0A] border border-[#222222] space-y-2">
+                <div className="flex justify-between items-center pb-2 border-b border-[#1A1A1A]">
+                  <span className="font-bold text-white uppercase text-sm">{biometricModalMember.name}</span>
+                  <Badge className="bg-red-500/10 text-red-400 border border-red-500/20 uppercase text-[9px] font-bold py-0">{biometricModalMember.status}</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[#8A8A8A]">
+                  <div>Member ID: <span className="text-white font-mono">{biometricModalMember.memberId}</span></div>
+                  <div>Plan: <span className="text-white">{biometricModalMember.plan}</span></div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#E02020]/5 border border-[#E02020]/20 rounded-lg text-[#CFCFCF] space-y-2">
+                <p className="font-medium text-white">Fingerprint Scanner Ready</p>
+                <p className="text-[11px] leading-relaxed">
+                  Ask <strong className="text-white">{biometricModalMember.name}</strong> to place their finger on the ZKTeco device at reception. Once their fingerprint is captured, click confirm below.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  onClick={() => {
+                    const memberId = biometricModalMember.memberId;
+                    setMembers(prev => prev.map(m => m.memberId === memberId ? { ...m, biometric: "Registered" } : m));
+                    
+                    const usersStr = localStorage.getItem("registered_users");
+                    if (usersStr) {
+                      try {
+                        const users = JSON.parse(usersStr);
+                        const updated = users.map((u: any) => u.memberId === memberId ? { ...u, biometric: "Registered" } : u);
+                        localStorage.setItem("registered_users", JSON.stringify(updated));
+                      } catch(e) {}
+                    }
+
+                    // Write activity log
+                    const logsStr = localStorage.getItem(`activity_logs_${memberId}`);
+                    let logs = [];
+                    if (logsStr) {
+                      try { logs = JSON.parse(logsStr); } catch (e) {}
+                    } else {
+                      logs = [
+                        { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
+                        { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+                        { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+                        { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+                        { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+                      ];
+                    }
+                    const newEntry = {
+                      title: "Biometric registered",
+                      date: "29 May 2025",
+                      desc: "Biometric registered — 29 May 2025 — by Gaurav Mehta"
+                    };
+                    localStorage.setItem(`activity_logs_${memberId}`, JSON.stringify([newEntry, ...logs]));
+
+                    toast.success(`Biometric registered for ${biometricModalMember.name}`);
+                    setBiometricModalMember(null);
+                  }}
+                  className="flex-1 bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-10 uppercase text-xs"
+                >
+                  ✓ Biometric Registered
+                </Button>
+                <button
+                  onClick={() => setBiometricModalMember(null)}
+                  className="text-[#8A8A8A] hover:text-white uppercase font-bold text-xs px-2 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1522,7 +2312,7 @@ function TabPendingApplications({
 
       {/* Registration Details Modal */}
       {selectedAppForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+        <div className="modal-overlay z-50">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -1656,8 +2446,8 @@ function TabPendingPayments({
         </div>
 
         {pendingTransactions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+          <div className="overflow-x-auto -mx-px">
+            <table className="w-full min-w-[640px] text-left border-collapse text-xs text-[#CFCFCF]">
               <thead>
                 <tr className="border-b border-[#1A1A1A] bg-[#0A0A0A] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
                   <th className="px-6 py-4">Transaction ID</th>
@@ -1681,9 +2471,9 @@ function TabPendingPayments({
                         <Button
                           size="sm"
                           onClick={() => handleVerify(tx.id)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-3 text-[10px] font-bold uppercase"
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-7 px-3 text-[10px] font-bold uppercase"
                         >
-                          Verify Receipt
+                          Mark Payment Verified
                         </Button>
                         <Button
                           size="sm"
@@ -1937,7 +2727,7 @@ function TabPayments({
       </div>
 
       {/* Revenue stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 min-[400px]:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 text-center">
           <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold block mb-1">Today Collections</span>
           <span className="font-display text-2xl font-bold text-white">₹17,998</span>
@@ -1964,8 +2754,8 @@ function TabPayments({
             <span>Pending Cash Collections Desk Desk ({pendingVerify.length})</span>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-[11px] text-[#CFCFCF]">
+          <div className="overflow-x-auto -mx-px">
+            <table className="w-full min-w-[540px] text-left border-collapse text-[11px] text-[#CFCFCF]">
               <thead>
                 <tr className="border-b border-[#222222] text-[#8A8A8A] font-semibold">
                   <th className="py-2 px-3">Date</th>
@@ -1987,9 +2777,9 @@ function TabPayments({
                         <Button
                           size="sm"
                           onClick={() => handleVerify(tx.id)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white h-6 px-2.5 text-[9px] font-bold uppercase"
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-6 px-2.5 text-[9px] font-bold uppercase"
                         >
-                          Verify Receipt
+                          Mark Payment Verified
                         </Button>
                         <Button
                           size="sm"
@@ -2014,8 +2804,8 @@ function TabPayments({
           <h3 className="font-display text-base tracking-wide uppercase text-white font-bold">Payments Ledger</h3>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+        <div className="overflow-x-auto -mx-px">
+          <table className="w-full min-w-[640px] text-left border-collapse text-xs text-[#CFCFCF]">
             <thead>
               <tr className="border-b border-[#1A1A1A] bg-[#0A0A0A] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
                 <th className="px-6 py-3.5">Date</th>
@@ -2147,8 +2937,8 @@ function TabAttendanceLog({ members }: { members: Member[] }) {
           </div>
 
           <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+            <div className="overflow-x-auto -mx-px">
+              <table className="w-full min-w-[600px] text-left border-collapse text-xs text-[#CFCFCF]">
                 <thead>
                   <tr className="border-b border-[#1A1A1A] bg-[#0A0A0A] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
                     <th className="px-6 py-3.5">Member Name</th>

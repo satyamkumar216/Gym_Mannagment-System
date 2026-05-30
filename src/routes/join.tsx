@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/join")({
   head: () => ({
@@ -306,7 +306,7 @@ Thank you for joining IronForge!
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col justify-between font-sans">
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col justify-between font-sans overflow-x-hidden">
       {/* Top bar & progress */}
       <header className="border-b border-[#1A1A1A] sticky top-0 bg-[#0A0A0A]/95 backdrop-blur z-10">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-4 flex items-center justify-between">
@@ -322,8 +322,9 @@ Thank you for joining IronForge!
         </div>
         
         {/* Red step progress bar */}
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 pb-4">
-          <div className="flex items-center justify-between mb-2 text-[10px] sm:text-xs uppercase tracking-widest text-[#8A8A8A]">
+        <div className="w-full px-4 sm:px-6 pb-4 max-w-5xl mx-auto">
+          {/* Desktop: step labels */}
+          <div className="hidden md:flex items-center justify-between mb-2 text-xs uppercase tracking-widest text-[#8A8A8A]">
             {STEPS.map((s, i) => (
               <div
                 key={s}
@@ -332,9 +333,21 @@ Thank you for joining IronForge!
                   i <= step ? "text-[#E02020]" : "text-[#3A3A3A]"
                 )}
               >
-                <span className="hidden md:inline">{s}</span>
-                <span className="md:hidden">{i + 1}</span>
+                {s}
               </div>
+            ))}
+          </div>
+          {/* Mobile: dot indicators */}
+          <div className="flex md:hidden items-center justify-center gap-2 mb-3" aria-label={`Step ${step + 1} of ${STEPS.length}`}>
+            {STEPS.map((s, i) => (
+              <div
+                key={s}
+                className={cn(
+                  "h-2.5 w-2.5 rounded-full transition-colors",
+                  i <= step ? "bg-[#E02020] scale-110" : "bg-[#1A1A1A] border border-[#333333]"
+                )}
+                aria-hidden
+              />
             ))}
           </div>
           <div className="h-1 bg-[#1A1A1A] rounded-full overflow-hidden">
@@ -348,8 +361,8 @@ Thank you for joining IronForge!
       </header>
 
       {/* Main body */}
-      <main className="flex-1 flex flex-col justify-center py-8 px-4 max-w-5xl mx-auto w-full">
-        <div className="w-full max-w-3xl mx-auto">
+      <main className="flex-1 flex flex-col justify-center py-6 sm:py-8 px-4 w-full max-w-full sm:max-w-5xl mx-auto min-w-0">
+        <div className="w-full max-w-full sm:max-w-3xl mx-auto min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={step}
@@ -366,6 +379,7 @@ Thank you for joining IronForge!
                   form={form}
                   set={set}
                   planBase={planBase}
+                  addonsPerMonth={addonsPerMonth}
                   addonsTotal={addonsTotal}
                   subtotal={subtotal}
                   gst={gst}
@@ -397,22 +411,22 @@ Thank you for joining IronForge!
 
           {/* Nav buttons */}
           {step < 5 && (
-            <div className="mt-8 flex items-center justify-between border-t border-[#1A1A1A] pt-6">
+            <div className="mt-8 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-[#1A1A1A] pt-6">
               <Button
                 variant="outline"
                 onClick={back}
                 disabled={step === 0}
-                className="border-[#222222] bg-transparent text-white hover:bg-[#1A1A1A] disabled:opacity-30 h-11 px-5"
+                className="border-[#222222] bg-transparent text-white hover:bg-[#1A1A1A] disabled:opacity-30 h-11 min-h-[44px] px-5 w-full sm:w-auto"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" /> Back
               </Button>
-              <div className="text-xs text-[#8A8A8A]">
+              <div className="text-xs text-[#8A8A8A] text-center sm:hidden">
                 Step {step + 1} of {STEPS.length}
               </div>
               <Button
                 onClick={next}
                 disabled={submitting || !isStepValid(step)}
-                className="bg-[#E02020] hover:bg-[#C41818] text-white font-semibold min-w-[130px] h-11"
+                className="bg-[#E02020] hover:bg-[#C41818] text-white font-semibold min-w-0 sm:min-w-[130px] h-11 min-h-[44px] w-full sm:w-auto"
               >
                 {submitting ? (
                   <span className="flex items-center gap-1.5"><Loader2 className="h-4 w-4 animate-spin" /> Submitting</span>
@@ -466,7 +480,7 @@ function Step1CreateAccount({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-4xl uppercase tracking-wide">Create Your Account</h2>
+        <h2 className="font-display text-2xl sm:text-4xl uppercase tracking-wide break-words">Create Your Account</h2>
         <p className="text-sm text-[#8A8A8A] mt-1">Get started on your fitness journey with IronForge.</p>
       </div>
 
@@ -624,7 +638,7 @@ function Step2HealthProfile({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-4xl uppercase tracking-wide">Health & Fitness Profile</h2>
+        <h2 className="font-display text-2xl sm:text-4xl uppercase tracking-wide break-words">Health & Fitness Profile</h2>
         <p className="text-sm text-[#8A8A8A] mt-1">Provide details to help our training staff coordinate workouts safely.</p>
       </div>
 
@@ -813,7 +827,7 @@ function Step3Terms({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-4xl uppercase tracking-wide">Terms & Digital Signature</h2>
+        <h2 className="font-display text-2xl sm:text-4xl uppercase tracking-wide break-words">Terms & Digital Signature</h2>
         <p className="text-sm text-[#8A8A8A] mt-1">Review guidelines and digitally sign your agreement.</p>
       </div>
 
@@ -895,11 +909,12 @@ function Step3Terms({
 
 // ================= STEP 4: CHOOSE PLAN =================
 function Step4ChoosePlan({
-  form, set, planBase, addonsTotal, subtotal, gst, total, emiAmount, monthsForAddons
+  form, set, planBase, addonsPerMonth, addonsTotal, subtotal, gst, total, emiAmount, monthsForAddons
 }: {
   form: FormState;
   set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   planBase: number;
+  addonsPerMonth: number;
   addonsTotal: number;
   subtotal: number;
   gst: number;
@@ -910,7 +925,7 @@ function Step4ChoosePlan({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-4xl uppercase tracking-wide">Choose Your Plan</h2>
+        <h2 className="font-display text-2xl sm:text-4xl uppercase tracking-wide break-words">Choose Your Plan</h2>
         <p className="text-sm text-[#8A8A8A] mt-1">All subscription fees include 18% GST in final invoice.</p>
       </div>
 
@@ -1052,18 +1067,18 @@ function Step5Payment({
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-display text-4xl uppercase tracking-wide">Complete Payment</h2>
+        <h2 className="font-display text-2xl sm:text-4xl uppercase tracking-wide break-words">Complete Payment</h2>
         <p className="text-sm text-[#8A8A8A] mt-1">Select your preferred payment path below.</p>
       </div>
 
       <RadioGroup
         value={form.paymentMode}
         onValueChange={(v) => set("paymentMode", v as FormState["paymentMode"])}
-        className="space-y-3"
+        className="flex flex-col gap-3"
       >
         {/* Online Razorpay Card */}
         <div className={cn(
-          "rounded-xl border p-5 transition-all bg-[#111111]",
+          "rounded-xl border p-5 transition-all bg-[#111111] w-full",
           form.paymentMode === "online" ? "border-[#E02020] shadow-lg shadow-[#E02020]/5" : "border-[#222222]"
         )}>
           <div className="flex items-start gap-3">

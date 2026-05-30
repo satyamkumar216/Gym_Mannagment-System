@@ -3,14 +3,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useMemo, useEffect } from "react";
 import {
   LayoutDashboard, User, Calendar, Receipt, Activity, QrCode, Bell, PhoneCall,
-  Dumbbell, LogOut, Menu, X, Flame, ShieldAlert, Award, TrendingUp,
+  Dumbbell, LogOut, X, Flame, ShieldAlert, Award, TrendingUp,
   Printer, Download, Share2, MessageCircle, AlertTriangle, CheckCircle2, ChevronRight,
-  TrendingDown, MapPin, Eye, FileText
+  TrendingDown, MapPin, Eye, FileText, Fingerprint, Check, UserCheck, Lock, History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -39,6 +41,16 @@ const invoices: InvoiceData[] = [
   { date: "12 Aug 2024", amount: "₹1,499", plan: "Monthly", method: "Cash", status: "Paid", invoiceNo: "INV-2024-0417" },
 ];
 
+const formatDate = (date: Date) => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+};
+
+const formatDateLong = (date: Date) => {
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+};
+
 function MemberDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabId>("overview");
@@ -47,6 +59,203 @@ function MemberDashboard() {
 
   const [member, setMember] = useState<any>(null);
   const [firstLoginModal, setFirstLoginModal] = useState(false);
+
+  const [renewalModalOpen, setRenewalModalOpen] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<"monthly" | "quarterly" | "annual">("quarterly");
+  const [renewalStep, setRenewalStep] = useState<"select" | "processing" | "success">("select");
+  const [generatedRefId, setGeneratedRefId] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"razorpay" | "gym" | null>(null);
+
+  const [bellOpen, setBellOpen] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "Membership renews in 12 days",
+      time: "2 hours ago",
+      desc: "Your Quarterly Premium plan expires on 15 August 2025. Clear renewal dues to avoid interruption.",
+      color: "border-red-500/20 bg-red-500/5 text-red-400",
+      icon: Receipt,
+      read: false,
+      action: { label: "Renew Now", tab: "billing" as TabId }
+    },
+    {
+      id: 2,
+      title: "New Morning HIIT batch starts 2 June",
+      time: "1 day ago",
+      desc: "Book your slot in the Morning HIIT conditioning batch starting Monday at 6:30 AM. Coach Karan.",
+      color: "border-blue-500/20 bg-blue-500/5 text-blue-400",
+      icon: Dumbbell,
+      read: false,
+      action: { label: "Support Ticket", tab: "support" as TabId }
+    },
+    {
+      id: 3,
+      title: "You've hit a 5-day streak! Keep going 🔥",
+      time: "2 days ago",
+      desc: "Incredible consistency! Hit the gym today to lock down day 6. You are in the top 10% of active members this week.",
+      color: "border-amber-500/20 bg-amber-500/5 text-amber-500",
+      icon: Flame,
+      read: false
+    },
+    {
+      id: 4,
+      title: "Gym closed on 1 June (Sunday) for maintenance",
+      time: "4 days ago",
+      desc: "Our facility will remain closed on Sunday, 1st June 2025, for monthly deep cleaning and equipment safety maintenance.",
+      color: "border-[#222222] bg-[#111111] text-[#8A8A8A]",
+      icon: AlertTriangle,
+      read: false
+    },
+    {
+      id: 5,
+      title: "Payment of ₹3,999 received on 12 Feb",
+      time: "3 months ago",
+      desc: "Thank you! We received your Quarterly Premium subscription fee of ₹3,999. Invoice INV-2025-0182 generated.",
+      color: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400",
+      icon: CheckCircle2,
+      read: true,
+      action: { label: "View Invoice", tab: "billing" as TabId }
+    }
+  ]);
+
+  const handleRenewClick = () => {
+    navigate({ to: "/dashboard/renew" });
+  };
+
+  const handlePayOnline = () => {
+    setPaymentMethod("razorpay");
+    setRenewalStep("processing");
+    setTimeout(() => {
+      const priceFormatted = selectedPlanId === "monthly" ? "₹1,499" : selectedPlanId === "annual" ? "₹13,999" : "₹3,999";
+      
+      const currentExpiry = member?.expiry || member?.validUntil || "15 Aug 2025";
+      let expiryDate = new Date(currentExpiry);
+      if (isNaN(expiryDate.getTime())) {
+        expiryDate = new Date();
+      }
+      const now = new Date();
+      const baseDate = expiryDate > now ? expiryDate : now;
+      
+      if (selectedPlanId === "monthly") {
+        baseDate.setMonth(baseDate.getMonth() + 1);
+      } else if (selectedPlanId === "quarterly") {
+        baseDate.setMonth(baseDate.getMonth() + 3);
+      } else {
+        baseDate.setFullYear(baseDate.getFullYear() + 1);
+      }
+      
+      const newExpiryStr = formatDate(baseDate);
+      const newExpiryLongStr = formatDateLong(baseDate);
+      
+      const updated = {
+        ...member,
+        plan: selectedPlanId,
+        planCode: selectedPlanId,
+        expiry: newExpiryStr,
+        validUntil: newExpiryLongStr,
+        paymentMode: "online",
+        totalPriceFormatted: priceFormatted,
+        status: "Active"
+      };
+      
+      setMember(updated);
+      localStorage.setItem("logged_in_member", JSON.stringify(updated));
+      
+      const usersStr = localStorage.getItem("registered_users");
+      if (usersStr) {
+        try {
+          const users = JSON.parse(usersStr);
+          const idx = users.findIndex((u: any) => u.memberId === member.memberId);
+          if (idx !== -1) {
+            users[idx] = {
+              ...users[idx],
+              plan: selectedPlanId,
+              expiry: newExpiryStr,
+              validUntil: newExpiryLongStr,
+              paymentMode: "online",
+              totalPriceFormatted: priceFormatted,
+              status: "Active"
+            };
+            localStorage.setItem("registered_users", JSON.stringify(users));
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      
+      setRenewalStep("success");
+      toast.success("Payment successful! Membership renewed.");
+    }, 1500);
+  };
+
+  const handlePayAtGym = () => {
+    setPaymentMethod("gym");
+    const refId = `IG-REF-${Math.floor(100000 + Math.random() * 900000)}`;
+    setGeneratedRefId(refId);
+    
+    const priceFormatted = selectedPlanId === "monthly" ? "₹1,499" : selectedPlanId === "annual" ? "₹13,999" : "₹3,999";
+    
+    const currentExpiry = member?.expiry || member?.validUntil || "15 Aug 2025";
+    let expiryDate = new Date(currentExpiry);
+    if (isNaN(expiryDate.getTime())) {
+      expiryDate = new Date();
+    }
+    const now = new Date();
+    const baseDate = expiryDate > now ? expiryDate : now;
+    
+    if (selectedPlanId === "monthly") {
+      baseDate.setMonth(baseDate.getMonth() + 1);
+    } else if (selectedPlanId === "quarterly") {
+      baseDate.setMonth(baseDate.getMonth() + 3);
+    } else {
+      baseDate.setFullYear(baseDate.getFullYear() + 1);
+    }
+    
+    const newExpiryStr = formatDate(baseDate);
+    const newExpiryLongStr = formatDateLong(baseDate);
+    
+    const updated = {
+      ...member,
+      plan: selectedPlanId,
+      planCode: selectedPlanId,
+      expiry: newExpiryStr,
+      validUntil: newExpiryLongStr,
+      paymentMode: "gym",
+      referenceId: refId,
+      totalPriceFormatted: priceFormatted,
+      status: "Pending Payment"
+    };
+    
+    setMember(updated);
+    localStorage.setItem("logged_in_member", JSON.stringify(updated));
+    
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const idx = users.findIndex((u: any) => u.memberId === member.memberId);
+        if (idx !== -1) {
+          users[idx] = {
+            ...users[idx],
+            plan: selectedPlanId,
+            expiry: newExpiryStr,
+            validUntil: newExpiryLongStr,
+            paymentMode: "gym",
+            referenceId: refId,
+            totalPriceFormatted: priceFormatted,
+            status: "Pending Payment"
+          };
+          localStorage.setItem("registered_users", JSON.stringify(users));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    setRenewalStep("success");
+    toast.success("Reference ID generated! Please pay at the gym reception.");
+  };
 
   useEffect(() => {
     // Check if member is logged in
@@ -57,9 +266,29 @@ function MemberDashboard() {
     }
 
     const memberStr = localStorage.getItem("logged_in_member");
+    const usersStr = localStorage.getItem("registered_users");
+    
     if (memberStr) {
       try {
-        const data = JSON.parse(memberStr);
+        let data = JSON.parse(memberStr);
+        
+        // Sync from registered_users dynamically if found
+        if (usersStr) {
+          const users = JSON.parse(usersStr);
+          const dbUser = users.find((u: any) => u.memberId === data.memberId || u.mobile === data.mobile);
+          if (dbUser) {
+            data = {
+              ...data,
+              status: dbUser.status,
+              rejectionReason: dbUser.rejectionReason,
+              suspensionReason: dbUser.suspensionReason,
+              expiry: dbUser.expiry || dbUser.validUntil || data.expiry,
+              validUntil: dbUser.validUntil || dbUser.expiry || data.validUntil
+            };
+            localStorage.setItem("logged_in_member", JSON.stringify(data));
+          }
+        }
+
         setMember(data);
         if (data.isFirstLogin) {
           setFirstLoginModal(true);
@@ -118,9 +347,10 @@ function MemberDashboard() {
     { id: "profile", label: "My Profile", icon: User },
     { id: "attendance", label: "Attendance", icon: Calendar },
     { id: "billing", label: "Membership & Billing", icon: Receipt },
+    { id: "renewals", label: "Renewal History", icon: History, navTo: "/dashboard/renewals" as const },
     { id: "status", label: "Live Gym Status", icon: Activity },
     { id: "idcard", label: "Digital ID Card", icon: QrCode },
-    { id: "notifications", label: "Notifications", icon: Bell, badge: 3 },
+    { id: "notifications", label: "Notifications", icon: Bell, badge: notifications.filter(n => !n.read).length },
     { id: "support", label: "Contact & Support", icon: PhoneCall },
   ] as const;
 
@@ -177,31 +407,85 @@ Thank you for training with us!
     toast.success("GST Invoice downloaded successfully!");
   };
 
+  const graceInfo = useMemo(() => {
+    if (!member || !member.expiry) {
+      return { expired: false, graceActive: false, daysElapsed: 0, daysLeft: 0, daysSinceGraceEnded: 0 };
+    }
+    const expiryDate = new Date(member.expiry);
+    if (isNaN(expiryDate.getTime())) {
+      return { expired: false, graceActive: false, daysElapsed: 0, daysLeft: 0, daysSinceGraceEnded: 0 };
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryDate);
+    expiry.setHours(0, 0, 0, 0);
+
+    const diffTime = today.getTime() - expiry.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) {
+      return { expired: false, graceActive: false, daysElapsed: 0, daysLeft: 0, daysSinceGraceEnded: 0 };
+    }
+
+    const gracePeriodDays = 7;
+    const graceActive = diffDays <= gracePeriodDays;
+    return {
+      expired: true,
+      graceActive,
+      daysElapsed: diffDays,
+      daysLeft: Math.max(0, gracePeriodDays - diffDays),
+      daysSinceGraceEnded: Math.max(0, diffDays - gracePeriodDays),
+    };
+  }, [member]);
+
+  if (member) {
+    if (member.status === "Suspended") {
+      return <SuspendedScreen member={member} handleLogout={handleLogout} />;
+    }
+    if (member.status === "Rejected") {
+      return <RejectedScreen member={member} handleLogout={handleLogout} />;
+    }
+    if (member.status === "Expired" || (graceInfo.expired && !graceInfo.graceActive)) {
+      return (
+        <ExpiredScreen
+          member={member}
+          grace={graceInfo}
+          handleLogout={handleLogout}
+          onRenewClick={handleRenewClick}
+        />
+      );
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col md:flex-row relative">
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col md:flex-row relative overflow-x-hidden">
       
-      {/* Mobile Top Header */}
-      <header className="md:hidden flex items-center justify-between bg-[#0A0A0A] border-b border-[#1A1A1A] px-5 py-4 shrink-0 z-20">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-[#E02020] flex items-center justify-center">
+      <header className="md:hidden flex items-center justify-between bg-[#0A0A0A] border-b border-[#1A1A1A] px-4 py-4 shrink-0 z-20">
+        <Link to="/" className="flex items-center gap-2 min-w-0">
+          <div className="h-8 w-8 rounded-lg bg-[#E02020] flex items-center justify-center shrink-0">
             <Dumbbell className="h-4 w-4 text-white" />
           </div>
-          <span className="font-display text-lg tracking-wide uppercase">IronForge</span>
+          <span className="font-display text-lg tracking-wide uppercase truncate">IronForge</span>
         </Link>
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-1 rounded-md text-[#8A8A8A] hover:text-white"
-          aria-label="Toggle menu"
-        >
-          {sidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setBellOpen(!bellOpen)}
+            className="relative touch-target flex items-center justify-center text-[#8A8A8A] hover:text-white transition-colors"
+            aria-label="Notifications"
+          >
+            <Bell className="h-5 w-5" />
+            {notifications.filter(n => !n.read).length > 0 && (
+              <span className="absolute top-2 right-2 h-4 w-4 rounded-full bg-[#E02020] text-white text-[8px] flex items-center justify-center font-bold">
+                {notifications.filter(n => !n.read).length}
+              </span>
+            )}
+          </button>
+        </div>
       </header>
 
-      {/* Sidebar navigation */}
-      <aside className={cn(
-        "fixed inset-y-0 left-0 w-64 bg-[#0A0A0A] border-r border-[#1A1A1A] flex flex-col justify-between p-6 shrink-0 transition-transform duration-300 md:translate-x-0 md:static z-30",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      {/* Sidebar navigation — desktop only; mobile uses bottom nav */}
+      <aside className="hidden md:flex md:flex-col inset-y-0 left-0 w-64 bg-[#0A0A0A] border-r border-[#1A1A1A] justify-between p-6 shrink-0 z-30">
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center gap-2.5">
@@ -210,20 +494,22 @@ Thank you for training with us!
               </div>
               <span className="font-display text-xl tracking-wide uppercase">IronForge Gym</span>
             </Link>
-            <button className="md:hidden text-[#8A8A8A] hover:text-white" onClick={() => setSidebarOpen(false)}>
-              <X className="h-5 w-5" />
-            </button>
           </div>
 
           <nav className="space-y-1.5 pt-4">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const active = activeTab === item.id;
+              const navTo = (item as any).navTo as string | undefined;
               return (
                 <button
                   key={item.id}
                   onClick={() => {
-                    setActiveTab(item.id);
+                    if (navTo) {
+                      navigate({ to: navTo as any });
+                    } else {
+                      setActiveTab(item.id as any);
+                    }
                     setSidebarOpen(false);
                   }}
                   className={cn(
@@ -237,9 +523,9 @@ Thank you for training with us!
                     <Icon className="h-4 w-4" />
                     <span>{item.label}</span>
                   </div>
-                  {item.badge && !active && (
+                  {("badge" in item) && (item as any).badge && !active && (
                     <span className="h-5 w-5 rounded-full bg-[#E02020]/20 border border-[#E02020]/30 text-[#E02020] text-[10px] flex items-center justify-center font-bold">
-                      {item.badge}
+                      {(item as any).badge}
                     </span>
                   )}
                 </button>
@@ -268,17 +554,147 @@ Thank you for training with us!
         </div>
       </aside>
 
-      {/* Background shadow for mobile sidebar */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 md:hidden z-20"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
       {/* Content wrapper */}
-      <div className="flex-1 bg-[#111111] min-w-0 flex flex-col justify-between min-h-[calc(100vh-65px)] md:min-h-screen">
-        <main className="p-6 md:p-8 space-y-6 flex-1">
+      <div className="flex-1 bg-[#111111] min-w-0 flex flex-col justify-between min-h-[calc(100vh-65px)] md:min-h-screen pb-[70px] md:pb-0 relative">
+        
+        {/* Grace Period Warning Banner */}
+        {member && graceInfo.expired && graceInfo.graceActive && !bannerDismissed && (
+          <div className="bg-[#E02020] text-white px-5 py-2.5 text-xs font-bold uppercase tracking-wider flex items-center justify-between gap-4 select-none shrink-0 z-40 animate-in slide-in-from-top duration-200">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span>⚠️ Membership expired {graceInfo.daysElapsed} {graceInfo.daysElapsed === 1 ? "day" : "days"} ago. Grace period ends in {graceInfo.daysLeft} {graceInfo.daysLeft === 1 ? "day" : "days"}. Renew now.</span>
+              <button 
+                onClick={handleRenewClick} 
+                className="px-2.5 py-0.5 bg-white text-[#E02020] rounded font-bold text-[9px] hover:bg-white/90 transition-colors cursor-pointer uppercase tracking-wider"
+              >
+                Renew
+              </button>
+            </div>
+            <button 
+              onClick={() => setBannerDismissed(true)} 
+              className="text-white hover:text-white/80 p-0.5 cursor-pointer bg-transparent border-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        
+        {/* Desktop Top Header */}
+        <header className="hidden md:flex items-center justify-between px-8 py-4 bg-[#0A0A0A] border-b border-[#1A1A1A] shrink-0 z-10">
+          <div className="flex items-center gap-3">
+            <span className="font-display text-lg tracking-wide uppercase text-white font-bold">Member Workspace</span>
+            <span className="text-[#E02020] text-[9px] font-bold px-2 py-0.5 rounded bg-[#E02020]/10 border border-[#E02020]/20 font-mono font-bold uppercase tracking-wider">MEMBER WORKSPACE</span>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <button
+              onClick={() => setBellOpen(!bellOpen)}
+              className="relative p-2 text-[#8A8A8A] hover:text-white hover:bg-[#111111] rounded-lg transition-colors cursor-pointer"
+              title="System Alerts"
+            >
+              <Bell className="h-5 w-5" />
+              {notifications.filter(n => !n.read).length > 0 && (
+                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-[#E02020] text-white text-[8px] flex items-center justify-center font-bold border-2 border-[#0A0A0A]">
+                  {notifications.filter(n => !n.read).length}
+                </span>
+              )}
+            </button>
+
+            {/* Profile Info */}
+            <div className="flex items-center gap-3 border-l border-[#1A1A1A] pl-6">
+              <div className="text-right">
+                <div className="font-semibold text-xs text-white">{stats.name}</div>
+                <div className="text-[10px] text-[#8A8A8A]">{stats.memberId}</div>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-[#E02020]/10 border border-[#E02020]/30 flex items-center justify-center font-bold text-xs text-[#E02020]">
+                {stats.name ? stats.name.split(" ").map((n: any) => n[0]).join("") : "RS"}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Notifications Dropdown Panel */}
+        <AnimatePresence>
+          {bellOpen && (
+            <>
+              <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setBellOpen(false)} />
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-4 md:right-8 top-[60px] md:top-[70px] w-80 bg-[#111111] border border-[#222222] rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col"
+              >
+                <div className="bg-[#0A0A0A] border-b border-[#222222] px-4 py-3 flex items-center justify-between">
+                  <h3 className="font-display text-sm text-white font-bold uppercase tracking-wider">Notifications</h3>
+                  <button
+                    onClick={() => {
+                      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                      toast.success("All notifications marked as read");
+                    }}
+                    className="text-[10px] text-[#E02020] hover:underline font-bold uppercase cursor-pointer"
+                  >
+                    Mark all read
+                  </button>
+                </div>
+
+                <div className="max-h-72 overflow-y-auto divide-y divide-[#222222]">
+                  {notifications.slice(0, 5).map((n) => {
+                    const IconComponent = n.icon;
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, read: true } : item));
+                          if (n.action) {
+                            setActiveTab(n.action.tab);
+                          }
+                          setBellOpen(false);
+                        }}
+                        className={cn(
+                          "p-3.5 space-y-1 transition-colors cursor-pointer text-left",
+                          n.read ? "bg-transparent hover:bg-[#1A1A1A]/30" : "bg-[#E02020]/5 hover:bg-[#E02020]/10"
+                        )}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <div className={cn(
+                            "h-7 w-7 rounded-md border flex items-center justify-center shrink-0 mt-0.5",
+                            n.color ? n.color.split(" ")[0] + " " + n.color.split(" ")[1] : "border-[#222222] bg-[#111111]"
+                          )}>
+                            <IconComponent className={cn("h-3.5 w-3.5", n.color ? n.color.split(" ")[2] : "text-[#8A8A8A]")} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-white leading-tight break-words pr-2">{n.title}</p>
+                            <p className="text-[10px] text-[#8A8A8A] mt-0.5 line-clamp-2 leading-relaxed">{n.desc}</p>
+                            <span className="text-[9px] text-[#555555] block mt-1">{n.time}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {notifications.length === 0 && (
+                    <div className="p-8 text-center text-xs text-[#555555]">
+                      No notifications
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-[#0A0A0A] border-t border-[#222222] px-4 py-2.5 text-center">
+                  <button
+                    onClick={() => {
+                      setActiveTab("notifications");
+                      setBellOpen(false);
+                    }}
+                    className="text-xs text-[#E02020] hover:underline font-bold uppercase tracking-wide cursor-pointer"
+                  >
+                    View all notifications
+                  </button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        <main className="p-4 sm:p-6 md:p-8 space-y-6 flex-1 min-w-0 overflow-x-hidden">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -287,7 +703,7 @@ Thank you for training with us!
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === "overview" && <TabOverview stats={stats} setActiveTab={setActiveTab} />}
+              {activeTab === "overview" && <TabOverview stats={stats} setActiveTab={setActiveTab} onRenewClick={handleRenewClick} />}
               {activeTab === "profile" && <TabProfile stats={stats} />}
               {activeTab === "attendance" && <TabAttendance stats={stats} />}
               {activeTab === "billing" && (
@@ -296,11 +712,19 @@ Thank you for training with us!
                   selectedInvoice={selectedInvoice}
                   setSelectedInvoice={setSelectedInvoice}
                   handleInvoiceDownload={handleInvoiceDownload}
+                  onRenewClick={handleRenewClick}
                 />
               )}
               {activeTab === "status" && <TabLiveStatus />}
               {activeTab === "idcard" && <TabIdCard stats={stats} />}
-              {activeTab === "notifications" && <TabNotifications setActiveTab={setActiveTab} />}
+              {activeTab === "notifications" && (
+                <TabNotifications
+                  setActiveTab={setActiveTab}
+                  onRenewClick={handleRenewClick}
+                  notifications={notifications}
+                  setNotifications={setNotifications}
+                />
+              )}
               {activeTab === "support" && <TabSupport />}
             </motion.div>
           </AnimatePresence>
@@ -311,24 +735,61 @@ Thank you for training with us!
           <div className="flex gap-4">
             <Link to="/about" className="hover:text-white transition-colors">About Us</Link>
             <Link to="/plans" className="hover:text-white transition-colors">Plans</Link>
-            <Link to="/contact" className="hover:text-white transition-colors">Support</Link>
+            <Link to="/trainers" className="hover:text-white transition-colors">Trainers</Link>
+            <Link to="/gallery" className="hover:text-white transition-colors">Gallery</Link>
+            <Link to="/contact" className="hover:text-white transition-colors">Contact</Link>
           </div>
         </footer>
+
+        {/* Mobile Bottom Navigation */}
+        <div className="fixed bottom-0 inset-x-0 bg-[#0A0A0A]/95 backdrop-blur-md border-t border-[#1A1A1A] px-2 py-2 md:hidden z-40 pb-[calc(env(safe-area-inset-bottom)+8px)] pt-2">
+          <div className="flex items-center justify-between max-w-lg mx-auto w-full">
+            {[
+              { id: "overview", label: "Home", icon: LayoutDashboard },
+              { id: "attendance", label: "Attendance", icon: Calendar },
+              { id: "status", label: "Gym Status", icon: Activity },
+              { id: "idcard", label: "ID Card", icon: QrCode },
+              { id: "profile", label: "Profile", icon: User }
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as TabId)}
+                  className="relative flex flex-col items-center justify-center py-1 flex-1 text-center cursor-pointer select-none min-h-[44px] touch-target-inline"
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="activeTabMobile"
+                      className="absolute -top-2 w-12 h-1 bg-[#E02020] rounded-full"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <Icon className={cn("h-5 w-5 transition-colors", active ? "text-[#E02020]" : "text-[#8A8A8A]")} />
+                  <span className={cn("text-[9px] font-bold tracking-wide mt-1 uppercase", active ? "text-white" : "text-[#8A8A8A]")}>
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* First Login Welcome Modal */}
       {firstLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+        <div className="modal-overlay z-50">
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-md rounded-2xl bg-[#111111] border border-[#222222] overflow-hidden shadow-2xl"
+            initial={{ scale: 0.95, opacity: 0, y: 24 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="modal-sheet rounded-2xl"
           >
             <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-5 text-center relative">
               <div className="mx-auto h-12 w-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-3">
                 <UserCheck className="h-6 w-6 text-emerald-400" />
               </div>
-              <h3 className="font-display text-2xl text-white tracking-wide uppercase">Your membership is now ACTIVE! 🎉</h3>
+              <h3 className="font-display text-xl sm:text-2xl text-white tracking-wide uppercase break-words">Your membership is now ACTIVE! 🎉</h3>
               <p className="text-xs text-[#8A8A8A] mt-1">Welcome to the IronForge family</p>
             </div>
 
@@ -369,31 +830,245 @@ Thank you for training with us!
         </div>
       )}
 
+      {/* Renewal Modal */}
+      {renewalModalOpen && (
+        <div className="modal-overlay z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 24 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="modal-sheet max-w-lg rounded-2xl text-xs"
+          >
+            {/* Modal Header */}
+            <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-5 flex items-center justify-between flex-shrink-0">
+              <div>
+                <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">Membership Portal</span>
+                <h3 className="font-display text-2xl text-white tracking-wide uppercase mt-0.5">Renew Membership</h3>
+              </div>
+              {renewalStep !== "processing" && (
+                <button
+                  onClick={() => setRenewalModalOpen(false)}
+                  className="text-[#8A8A8A] hover:text-white transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            {renewalStep === "select" && (
+              <div className="p-6 space-y-6">
+                {/* Current Plan Status */}
+                <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Current Active Plan</span>
+                    <div className="font-display text-base text-white font-bold uppercase mt-0.5">{stats.plan}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Expiry Date</span>
+                    <div className="text-xs text-[#E02020] font-bold mt-0.5">{stats.validUntil}</div>
+                  </div>
+                </div>
+
+                {/* Plan Selection */}
+                <div className="space-y-3">
+                  <span className="text-[10px] uppercase tracking-widest text-[#8A8A8A] font-semibold block">Select Plan Duration</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {[
+                      { id: "monthly", name: "Monthly", price: 1499, desc: "Standard access" },
+                      { id: "quarterly", name: "Quarterly", price: 3999, desc: "Save 11%" },
+                      { id: "annual", name: "Annual", price: 13999, desc: "Save 22%" }
+                    ].map((p) => {
+                      const selected = selectedPlanId === p.id;
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => setSelectedPlanId(p.id as any)}
+                          className={cn(
+                            "rounded-xl border p-4 text-center cursor-pointer transition-all hover:scale-[1.02]",
+                            selected
+                              ? "bg-[#E02020]/10 border-[#E02020] shadow-md shadow-[#E02020]/5"
+                              : "bg-[#0A0A0A] border-[#222222] hover:border-[#444444]"
+                          )}
+                        >
+                          <span className="font-bold text-xs block text-white">{p.name}</span>
+                          <span className="font-display text-base font-bold text-white block mt-1">₹{p.price.toLocaleString("en-IN")}</span>
+                          <span className="text-[9px] text-[#8A8A8A] mt-0.5 block">{p.desc}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Price Breakdown */}
+                <div className="bg-[#0A0A0A] border border-[#222222] rounded-xl p-4 space-y-2">
+                  <span className="text-[10px] uppercase tracking-widest text-[#8A8A8A] font-bold block pb-1 border-b border-[#1A1A1A]">Payment Summary</span>
+                  <div className="flex justify-between text-[#8A8A8A]">
+                    <span>Base Membership Cost</span>
+                    <span>₹{(selectedPlanId === "monthly" ? 1270 : selectedPlanId === "annual" ? 11864 : 3389).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between text-[#8A8A8A]">
+                    <span>Integrated GST @ 18%</span>
+                    <span>₹{(selectedPlanId === "monthly" ? 229 : selectedPlanId === "annual" ? 2135 : 610).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="border-t border-[#1A1A1A] pt-2 flex justify-between font-bold text-sm text-white">
+                    <span className="uppercase text-xs tracking-wider">Total Amount Due</span>
+                    <span className="text-[#E02020]">
+                      ₹{(selectedPlanId === "monthly" ? 1499 : selectedPlanId === "annual" ? 13999 : 3999).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-2 pt-2 border-t border-[#1A1A1A]">
+                  <Button
+                    onClick={handlePayOnline}
+                    className="w-full bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-11 text-xs uppercase"
+                  >
+                    Pay via Razorpay
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handlePayAtGym}
+                    className="w-full border-[#222222] bg-[#0A0A0A] text-white hover:bg-[#1A1A1A] font-bold h-11 text-xs uppercase"
+                  >
+                    Pay cash at Gym
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {renewalStep === "processing" && (
+              <div className="p-12 text-center space-y-4">
+                <div className="h-12 w-12 rounded-full border-2 border-t-[#E02020] border-[#222222] animate-spin mx-auto animate-duration-1000" />
+                <div className="space-y-1">
+                  <h4 className="font-bold text-white uppercase tracking-wider text-xs">Processing Payment</h4>
+                  <p className="text-[#8A8A8A]">Please do not refresh the page or close the browser window.</p>
+                </div>
+              </div>
+            )}
+
+            {renewalStep === "success" && (
+              <div className="p-6 space-y-6 text-center">
+                <div className="mx-auto h-16 w-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                  <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-display text-2xl text-white tracking-wide uppercase">Renewal Successful! 🎉</h3>
+                  {paymentMethod === "gym" ? (
+                    <div className="space-y-3 pt-2">
+                      <p className="text-[#8A8A8A] leading-relaxed">
+                        A cash renewal reference has been generated. Please present this code to the receptionist during check-in to activate your extension.
+                      </p>
+                      <div className="rounded-xl border border-dashed border-[#E02020]/40 bg-[#E02020]/5 p-4 inline-block font-mono text-lg font-bold text-white tracking-wider select-all cursor-pointer">
+                        {generatedRefId}
+                      </div>
+                      <p className="text-[10px] text-[#555555]">
+                        Reference ID updated in dashboard profile storage. Dues: ₹{(selectedPlanId === "monthly" ? 1499 : selectedPlanId === "annual" ? 13999 : 3999).toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-[#8A8A8A]">
+                      Your payment has been verified. Your membership has been successfully extended. Thank you for training with IronForge!
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-3 bg-[#0A0A0A] border border-[#222222] rounded-xl p-4 text-left">
+                  <div className="flex justify-between pb-2 border-b border-[#1A1A1A]">
+                    <span className="text-[#8A8A8A] uppercase text-[9px] tracking-wider">New Subscription Plan</span>
+                    <span className="font-bold text-white uppercase">{selectedPlanId === "monthly" ? "Monthly Standard" : selectedPlanId === "annual" ? "Annual Elite" : "Quarterly Premium"}</span>
+                  </div>
+                  <div className="flex justify-between pb-2 border-b border-[#1A1A1A]">
+                    <span className="text-[#8A8A8A] uppercase text-[9px] tracking-wider">Amount Paid/Due</span>
+                    <span className="font-bold text-white">₹{(selectedPlanId === "monthly" ? 1499 : selectedPlanId === "annual" ? 13999 : 3999).toLocaleString("en-IN")}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#8A8A8A] uppercase text-[9px] tracking-wider">New Expiry Date</span>
+                    <span className="font-bold text-[#E02020]">{member?.validUntil}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <Button
+                    onClick={() => setRenewalModalOpen(false)}
+                    className="w-full bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-11 text-xs uppercase"
+                  >
+                    Back to Dashboard
+                  </Button>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
     </div>
   );
 }
 
 // ================= TAB 1: OVERVIEW =================
-function TabOverview({ stats, setActiveTab }: { stats: any; setActiveTab: (t: TabId) => void }) {
-  // SVG representation of a red calendar heatmap preview
+function TabOverview({ stats, setActiveTab, onRenewClick }: { stats: any; setActiveTab: (t: TabId) => void; onRenewClick: () => void }) {
   const attendanceMock = Array.from({ length: 30 }, (_, i) => {
-    // Generate realistic data: gaps on weekends (e.g. days divisible by 7 or 6)
     const isWeekend = i % 7 === 0 || i % 7 === 6;
     const value = isWeekend ? (Math.random() > 0.85 ? 40 : 0) : Math.floor(Math.random() * 45) + 60;
     return { day: i + 1, mins: value };
   });
 
+  const biometricStatus = useMemo(() => {
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const matched = users.find((u: any) => u.memberId === stats.memberId);
+        if (matched && matched.biometric) {
+          return matched.biometric;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    const notSetNames = ["Sneha Reddy", "Vikram Singh", "Arjun Mehta", "Rohit Gupta", "Meera Joshi"];
+    if (notSetNames.includes(stats.name)) {
+      return "Not Set";
+    }
+    return "Registered";
+  }, [stats.memberId, stats.name]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2">
         <div>
-          <h1 className="font-display text-4xl tracking-wide uppercase text-white">Welcome back, Rahul 💪</h1>
+          <h1 className="font-display text-2xl sm:text-3xl md:text-4xl tracking-wide uppercase text-white break-words">Welcome back, {stats.name.split(" ")[0]} 💪</h1>
           <p className="text-sm text-[#8A8A8A] mt-1">Consistency is key. Ready for today's lift?</p>
         </div>
         <Badge className="bg-[#E02020]/10 text-[#E02020] border border-[#E02020]/20 hover:bg-[#E02020]/10 px-2.5 py-1 text-xs uppercase tracking-wider font-bold">
           Active Member
         </Badge>
       </div>
+
+      {biometricStatus === "Not Set" ? (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 flex items-start gap-3 animate-pulse text-xs">
+          <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
+            <ShieldAlert className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-bold text-white uppercase tracking-wider text-xs">⚠️ Fingerprint Not Registered</h4>
+            <p className="text-[#CFCFCF]">You cannot enter the gym until you register your fingerprint at reception.</p>
+            <p className="text-[#8A8A8A]">Visit reception and ask staff to register your biometric.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 flex items-start gap-3 text-xs">
+          <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 shrink-0">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <h4 className="font-bold text-white uppercase tracking-wider text-xs">✅ Gym Access Active</h4>
+            <p className="text-[#CFCFCF]">Your fingerprint is registered. Walk in anytime during gym hours.</p>
+            <p className="text-[#8A8A8A]">Last entry: Today 6:14 AM</p>
+          </div>
+        </div>
+      )}
 
       {/* Grid Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -419,13 +1094,17 @@ function TabOverview({ stats, setActiveTab }: { stats: any; setActiveTab: (t: Ta
           </div>
         </div>
 
-        <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 space-y-1">
-          <span className="text-[10px] uppercase tracking-widest text-[#8A8A8A] font-semibold">Valid Until</span>
-          <div className="font-display text-3xl font-bold text-white tracking-wide truncate">15 AUG 2025</div>
-          <div className="text-[10px] text-red-500 font-medium">
-            Renews in 12 days
+        <Link
+          to="/dashboard/renew"
+          className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 space-y-1 hover:border-[#E02020]/50 transition-colors group relative block"
+        >
+          <span className="text-[10px] uppercase tracking-widest text-[#8A8A8A] font-semibold group-hover:text-white transition-colors">Valid Until</span>
+          <div className="font-display text-3xl font-bold text-white tracking-wide truncate">{stats.validUntil ? String(stats.validUntil).toUpperCase() : "15 AUG 2025"}</div>
+          <div className="text-[10px] text-red-500 font-medium flex items-center justify-between">
+            <span>Renews soon</span>
+            <span className="text-[#E02020] opacity-0 group-hover:opacity-100 transition-opacity font-bold uppercase text-[9px]">Renew Now &rarr;</span>
           </div>
-        </div>
+        </Link>
 
         <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 space-y-1">
           <span className="text-[10px] uppercase tracking-widest text-[#8A8A8A] font-semibold">Active Plan</span>
@@ -433,6 +1112,31 @@ function TabOverview({ stats, setActiveTab }: { stats: any; setActiveTab: (t: Ta
           <div className="text-[10px] text-[#8A8A8A]">
             Joined {stats.joined}
           </div>
+        </div>
+      </div>
+
+      {/* Biometric Status Card */}
+      <div className="rounded-xl border border-[#222222] bg-[#0A0A0A] p-4 flex items-center gap-3.5">
+        <div className={cn(
+          "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 border",
+          biometricStatus === "Not Set" ? "bg-red-500/10 border-red-500/25 text-red-500" : "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+        )}>
+          <Fingerprint className="h-5 w-5" />
+        </div>
+        <div className="space-y-0.5">
+          <span className="text-[10px] uppercase tracking-widest text-[#8A8A8A] font-semibold block">Biometric Access</span>
+          {biometricStatus === "Not Set" ? (
+            <div>
+              <div className="text-sm font-bold text-white flex items-center gap-1.5">
+                <span>❌ Not registered — Visit reception to register</span>
+              </div>
+              <p className="text-xs text-red-500/80">Without biometric you cannot enter the gym</p>
+            </div>
+          ) : (
+            <div className="text-sm font-bold text-white flex items-center gap-1.5">
+              <span>✅ Fingerprint registered — Gym entry enabled</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -450,7 +1154,7 @@ function TabOverview({ stats, setActiveTab }: { stats: any; setActiveTab: (t: Ta
           </div>
 
           {/* Simple custom HTML/CSS bar graph */}
-          <div className="h-44 flex items-end justify-between gap-1.5 pt-4">
+          <div className="h-28 sm:h-36 md:h-44 w-full flex items-end justify-between gap-0.5 sm:gap-1.5 pt-4 overflow-hidden">
             {attendanceMock.map((item) => (
               <div key={item.day} className="flex-1 flex flex-col items-center h-full justify-end group relative">
                 {/* Tooltip */}
@@ -639,23 +1343,23 @@ function TabAttendance({ stats }: { stats: any }) {
           <Badge variant="outline" className="border-[#222222] text-[#8A8A8A] font-normal text-[10px]">Showing latest 10</Badge>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+        <div className="overflow-x-auto -mx-px">
+          <table className="w-full min-w-[480px] text-left border-collapse text-xs text-[#CFCFCF] table-sticky-first">
             <thead>
               <tr className="border-b border-[#1A1A1A] bg-[#0A0A0A] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
-                <th className="px-6 py-3.5">Date</th>
-                <th className="px-6 py-3.5">Check In</th>
-                <th className="px-6 py-3.5">Check Out</th>
-                <th className="px-6 py-3.5">Duration</th>
+                <th className="px-4 sm:px-6 py-3.5 whitespace-nowrap">Date</th>
+                <th className="px-4 sm:px-6 py-3.5 whitespace-nowrap">Check In</th>
+                <th className="px-4 sm:px-6 py-3.5 whitespace-nowrap hide-col-mobile">Check Out</th>
+                <th className="px-4 sm:px-6 py-3.5 whitespace-nowrap">Duration</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#161616]">
               {historyRows.map((row, idx) => (
                 <tr key={idx} className="hover:bg-[#111111]/80 transition-colors">
-                  <td className="px-6 py-3.5 font-medium text-white">{row.date}</td>
-                  <td className="px-6 py-3.5">{row.checkIn}</td>
-                  <td className="px-6 py-3.5">{row.checkOut}</td>
-                  <td className="px-6 py-3.5">
+                  <td className="px-4 sm:px-6 py-3.5 font-medium text-white whitespace-nowrap">{row.date}</td>
+                  <td className="px-4 sm:px-6 py-3.5 whitespace-nowrap">{row.checkIn}</td>
+                  <td className="px-4 sm:px-6 py-3.5 whitespace-nowrap hide-col-mobile">{row.checkOut}</td>
+                  <td className="px-4 sm:px-6 py-3.5 whitespace-nowrap">
                     <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 bg-emerald-500/5 py-0.5">
                       {row.duration}
                     </Badge>
@@ -672,12 +1376,13 @@ function TabAttendance({ stats }: { stats: any }) {
 
 // ================= TAB 3: MEMBERSHIP & BILLING =================
 function TabBilling({
-  stats, selectedInvoice, setSelectedInvoice, handleInvoiceDownload
+  stats, selectedInvoice, setSelectedInvoice, handleInvoiceDownload, onRenewClick
 }: {
   stats: any;
   selectedInvoice: InvoiceData | null;
   setSelectedInvoice: (i: InvoiceData | null) => void;
   handleInvoiceDownload: (i: InvoiceData) => void;
+  onRenewClick: () => void;
 }) {
   return (
     <div className="space-y-6">
@@ -706,7 +1411,9 @@ function TabBilling({
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
               <div>
                 <div className="text-[10px] text-[#8A8A8A] uppercase font-semibold">Price</div>
-                <div className="font-display text-2xl text-white font-semibold mt-0.5">₹3,999</div>
+                <div className="font-display text-2xl text-white font-semibold mt-0.5">
+                  {stats.plan === "Monthly Standard" ? "₹1,499" : stats.plan === "Annual Elite" ? "₹13,999" : "₹3,999"}
+                </div>
               </div>
               <div>
                 <div className="text-[10px] text-[#8A8A8A] uppercase font-semibold">Start Date</div>
@@ -714,7 +1421,7 @@ function TabBilling({
               </div>
               <div>
                 <div className="text-[10px] text-[#8A8A8A] uppercase font-semibold">Expires On</div>
-                <div className="text-sm font-semibold text-white mt-1">15 Aug 2025</div>
+                <div className="text-sm font-semibold text-white mt-1">{stats.validUntil}</div>
               </div>
             </div>
           </div>
@@ -724,7 +1431,7 @@ function TabBilling({
               GST (18%) inclusive. Auto-renews next cycle.
             </div>
             <Button
-              onClick={() => toast.loading("Connecting to Razorpay gateway...", { duration: 1500 })}
+              onClick={onRenewClick}
               className="bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-10 px-6 uppercase text-xs shrink-0 w-full sm:w-auto"
             >
               Renew Membership Now
@@ -757,7 +1464,7 @@ function TabBilling({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+          <table className="w-full min-w-[520px] text-left border-collapse text-xs text-[#CFCFCF] table-sticky-first">
             <thead>
               <tr className="border-b border-[#1A1A1A] bg-[#0A0A0A] uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
                 <th className="px-6 py-3.5">Payment Date</th>
@@ -802,11 +1509,11 @@ function TabBilling({
 
       {/* GST Invoice Details Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+        <div className="modal-overlay z-50">
           <motion.div
-            initial={{ scale: 0.95, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-lg rounded-xl bg-[#111111] border border-[#222222] overflow-hidden"
+            initial={{ scale: 0.95, opacity: 0, y: 24 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            className="modal-sheet max-w-lg rounded-xl"
           >
             <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-4 flex items-center justify-between">
               <div>
@@ -974,7 +1681,7 @@ function TabLiveStatus() {
           </div>
 
           {/* simple horizontal/vertical distribution */}
-          <div className="h-44 flex items-end justify-between gap-2 pt-4">
+          <div className="h-32 sm:h-44 flex items-end justify-between gap-2 pt-4">
             {peakHours.map((hour, idx) => (
               <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group relative">
                 <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[#111111] border border-[#222222] rounded px-1.5 py-0.5 text-[8px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
@@ -1105,52 +1812,17 @@ function TabIdCard({ stats }: { stats: any }) {
 }
 
 // ================= TAB 6: NOTIFICATIONS =================
-function TabNotifications({ setActiveTab }: { setActiveTab: (t: TabId) => void }) {
-  const notifs = [
-    {
-      id: 1,
-      title: "Membership renews in 12 days",
-      time: "2 hours ago",
-      desc: "Your Quarterly Premium plan expires on 15 August 2025. Clear renewal dues to avoid interruption.",
-      color: "border-red-500/20 bg-red-500/5 text-red-400",
-      icon: Receipt,
-      action: { label: "Renew Now", tab: "billing" as TabId }
-    },
-    {
-      id: 2,
-      title: "New Morning HIIT batch starts 2 June",
-      time: "1 day ago",
-      desc: "Book your slot in the Morning HIIT conditioning batch starting Monday at 6:30 AM. Coach Karan.",
-      color: "border-blue-500/20 bg-blue-500/5 text-blue-400",
-      icon: Dumbbell,
-      action: { label: "Support Ticket", tab: "support" as TabId }
-    },
-    {
-      id: 3,
-      title: "You've hit a 5-day streak! Keep going 🔥",
-      time: "2 days ago",
-      desc: "Incredible consistency! Hit the gym today to lock down day 6. You are in the top 10% of active members this week.",
-      color: "border-amber-500/20 bg-amber-500/5 text-amber-500",
-      icon: Flame,
-    },
-    {
-      id: 4,
-      title: "Gym closed on 1 June (Sunday) for maintenance",
-      time: "4 days ago",
-      desc: "Our facility will remain closed on Sunday, 1st June 2025, for monthly deep cleaning and equipment safety maintenance.",
-      color: "border-[#222222] bg-[#111111] text-[#8A8A8A]",
-      icon: AlertTriangle,
-    },
-    {
-      id: 5,
-      title: "Payment of ₹3,999 received on 12 Feb",
-      time: "3 months ago",
-      desc: "Thank you! We received your Quarterly Premium subscription fee of ₹3,999. Invoice INV-2025-0182 generated.",
-      color: "border-emerald-500/20 bg-emerald-500/5 text-emerald-400",
-      icon: CheckCircle2,
-      action: { label: "View Invoice", tab: "billing" as TabId }
-    }
-  ];
+function TabNotifications({
+  setActiveTab,
+  onRenewClick,
+  notifications,
+  setNotifications
+}: {
+  setActiveTab: (t: TabId) => void;
+  onRenewClick: () => void;
+  notifications: any[];
+  setNotifications: React.Dispatch<React.SetStateAction<any[]>>;
+}) {
 
   return (
     <div className="space-y-6">
@@ -1160,15 +1832,18 @@ function TabNotifications({ setActiveTab }: { setActiveTab: (t: TabId) => void }
           <p className="text-sm text-[#8A8A8A] mt-1">Review alerts, batch announcements, and billing confirmations.</p>
         </div>
         <button
-          onClick={() => toast.success("Cleared all notifications")}
-          className="text-xs text-[#8A8A8A] hover:text-white underline font-semibold shrink-0"
+          onClick={() => {
+            setNotifications([]);
+            toast.success("Cleared all notifications");
+          }}
+          className="text-xs text-[#8A8A8A] hover:text-white underline font-semibold shrink-0 cursor-pointer"
         >
           Clear All
         </button>
       </div>
 
       <div className="space-y-3">
-        {notifs.map((n) => {
+        {notifications.map((n) => {
           const Icon = n.icon;
           return (
             <div key={n.id} className={cn("rounded-xl border p-4 flex gap-4 transition-all hover:translate-x-0.5", n.color)}>
@@ -1183,13 +1858,24 @@ function TabNotifications({ setActiveTab }: { setActiveTab: (t: TabId) => void }
                 <p className="text-xs text-[#8A8A8A] leading-relaxed">{n.desc}</p>
                 {n.action && (
                   <div className="pt-2">
-                    <Button
-                      size="sm"
-                      onClick={() => setActiveTab(n.action.tab)}
-                      className="bg-[#1A1A1A] hover:bg-[#E02020] text-white border border-[#222222] h-7 px-3 text-[10px] font-bold uppercase"
-                    >
-                      {n.action.label}
-                    </Button>
+                    {n.action.label === "Renew Now" ? (
+                      <Link to="/dashboard/renew">
+                        <Button
+                          size="sm"
+                          className="bg-[#1A1A1A] hover:bg-[#E02020] text-white border border-[#222222] h-7 px-3 text-[10px] font-bold uppercase"
+                        >
+                          {n.action.label}
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button
+                        size="sm"
+                        onClick={() => setActiveTab(n.action.tab)}
+                        className="bg-[#1A1A1A] hover:bg-[#E02020] text-white border border-[#222222] h-7 px-3 text-[10px] font-bold uppercase"
+                      >
+                        {n.action.label}
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1449,3 +2135,223 @@ function TabSupport() {
     </div>
   );
 }
+
+// ================= STATUS & BLOCKING ERROR SCREENS =================
+
+function RejectedScreen({ member, handleLogout }: { member: any; handleLogout: () => void }) {
+  const navigate = useNavigate();
+
+  const handleApplyAgain = () => {
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const filtered = users.filter((u: any) => u.memberId !== member.memberId && u.mobile !== member.mobile);
+        localStorage.setItem("registered_users", JSON.stringify(filtered));
+      } catch (e) {}
+    }
+    localStorage.removeItem("is_member_logged_in");
+    localStorage.removeItem("logged_in_member");
+    toast.success("Ready to submit a new application!");
+    navigate({ to: "/join" });
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col justify-center items-center p-6 relative overflow-hidden font-sans select-none">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full bg-[#E02020] opacity-[0.03] blur-[120px] pointer-events-none" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-sm rounded-2xl bg-[#111111] border border-[#222222] p-8 shadow-2xl space-y-6 text-center"
+      >
+        <div className="flex justify-center">
+          <div className="h-16 w-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">Registration Status</span>
+          <h1 className="font-display text-2xl uppercase tracking-wide font-bold text-white">Application Not Approved</h1>
+          <p className="text-xs text-[#8A8A8A]">
+            Please contact us to understand why your registration request could not be processed.
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#0A0A0A] border border-[#222222] p-4 text-left text-xs space-y-1.5">
+          <span className="text-[#555555] font-bold uppercase tracking-wider text-[8px]">Reason from Staff</span>
+          <p className="text-[#CFCFCF] leading-relaxed">
+            {member.rejectionReason || "Application details were incomplete or failed our background checks. Please submit a new registration or contact our staff."}
+          </p>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <Button
+            onClick={handleApplyAgain}
+            className="w-full bg-[#E02020] hover:bg-[#C41818] text-white h-10 font-bold uppercase text-xs tracking-wider"
+          >
+            Apply Again
+          </Button>
+
+          <div className="grid grid-cols-2 gap-3">
+            <a
+              href="tel:+919876543210"
+              className="inline-flex items-center justify-center rounded-lg border border-[#222222] bg-[#111111] hover:bg-[#1A1A1A] hover:text-white text-xs font-bold uppercase tracking-wider h-10 transition-colors text-[#8A8A8A]"
+            >
+              Call Desk
+            </a>
+            <a
+              href="https://wa.me/919876543210?text=Hello%20IronForge%20Gym,%20I'm%20writing%20about%20my%20rejected%20application."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-lg border border-[#222222] bg-[#111111] hover:bg-[#1A1A1A] hover:text-white text-xs font-bold uppercase tracking-wider h-10 transition-colors text-[#8A8A8A]"
+            >
+              WhatsApp
+            </a>
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-[#222222]/50">
+          <button onClick={handleLogout} className="text-xs text-[#8A8A8A] hover:text-white transition-colors cursor-pointer uppercase font-bold tracking-wider">
+            Sign Out
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function SuspendedScreen({ member, handleLogout }: { member: any; handleLogout: () => void }) {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col justify-center items-center p-6 relative overflow-hidden font-sans select-none">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full bg-[#E02020] opacity-[0.03] blur-[120px] pointer-events-none" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-sm rounded-2xl bg-[#111111] border border-[#222222] p-8 shadow-2xl space-y-6 text-center"
+      >
+        <div className="flex justify-center">
+          <div className="h-16 w-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
+            <Lock className="h-8 w-8" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">Account Locked</span>
+          <h1 className="font-display text-2xl uppercase tracking-wide font-bold text-white">Account Suspended</h1>
+          <p className="text-xs text-[#8A8A8A]">
+            Your access privileges have been suspended. Please contact gym staff for assistance.
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#0A0A0A] border border-[#222222] p-4 text-left text-xs space-y-1.5">
+          <span className="text-[#555555] font-bold uppercase tracking-wider text-[8px]">Suspension Details</span>
+          <p className="text-[#CFCFCF] leading-relaxed">
+            {member.suspensionReason || "Your membership was suspended due to a code of conduct violation or administrative dues verification. Dues or behavior reviews are required."}
+          </p>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <a
+              href="tel:+919876543210"
+              className="inline-flex items-center justify-center rounded-lg border border-[#222222] bg-[#111111] hover:bg-[#1A1A1A] hover:text-white text-xs font-bold uppercase tracking-wider h-10 transition-colors text-[#8A8A8A]"
+            >
+              Call Desk
+            </a>
+            <a
+              href="https://wa.me/919876543210?text=Hello%20IronForge%20Gym,%20I'm%20writing%20about%20my%20suspended%20account."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-lg border border-[#222222] bg-[#111111] hover:bg-[#1A1A1A] hover:text-white text-xs font-bold uppercase tracking-wider h-10 transition-colors text-[#8A8A8A]"
+            >
+              WhatsApp
+            </a>
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-[#222222]/50">
+          <button onClick={handleLogout} className="text-xs text-[#8A8A8A] hover:text-white transition-colors cursor-pointer uppercase font-bold tracking-wider">
+            Sign Out
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function ExpiredScreen({ 
+  member, 
+  grace, 
+  handleLogout, 
+  onRenewClick 
+}: { 
+  member: any; 
+  grace: any; 
+  handleLogout: () => void; 
+  onRenewClick: () => void;
+}) {
+  return (
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col justify-center items-center p-6 relative overflow-hidden font-sans select-none">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[400px] w-[400px] rounded-full bg-[#E02020] opacity-[0.03] blur-[120px] pointer-events-none" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 15 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="w-full max-w-sm rounded-2xl bg-[#111111] border border-[#222222] p-8 shadow-2xl space-y-6 text-center"
+      >
+        <div className="flex justify-center">
+          <div className="h-16 w-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
+            <Lock className="h-8 w-8" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">Access Blocked</span>
+          <h1 className="font-display text-2xl uppercase tracking-wide font-bold text-white">Membership Expired</h1>
+          <p className="text-xs text-[#8A8A8A]">
+            Your IronForge subscription expired. Renew your plan to unlock dashboard access.
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-[#0A0A0A] border border-[#222222] p-4 text-xs text-left space-y-2">
+          <div className="flex justify-between">
+            <span className="text-[#555555]">Plan Expiry Date:</span>
+            <span className="text-white font-bold">{member.expiry || "15 Aug 2025"}</span>
+          </div>
+          <div className="h-px bg-[#222222]/50" />
+          <div className="text-center text-red-400 font-semibold pt-1">
+            {grace.graceActive ? (
+              <span>⚠️ You have {grace.daysLeft} days of grace period remaining.</span>
+            ) : (
+              <span>⚠️ Grace period ended {grace.daysSinceGraceEnded} days ago.</span>
+            )}
+          </div>
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <Link to="/dashboard/renew" className="block">
+            <Button
+              className="w-full bg-[#E02020] hover:bg-[#C41818] text-white h-10 font-bold uppercase text-xs tracking-wider"
+            >
+              Renew Now
+            </Button>
+          </Link>
+
+          <a
+            href="tel:+919876543210"
+            className="inline-flex items-center justify-center w-full rounded-lg border border-[#222222] bg-[#111111] hover:bg-[#1A1A1A] hover:text-white text-xs font-bold uppercase tracking-wider h-10 transition-colors text-[#8A8A8A]"
+          >
+            Contact Gym Desk
+          </a>
+        </div>
+
+        <div className="pt-2 border-t border-[#222222]/50">
+          <button onClick={handleLogout} className="text-xs text-[#8A8A8A] hover:text-white transition-colors cursor-pointer uppercase font-bold tracking-wider">
+            Sign Out
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+

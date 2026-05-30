@@ -4,14 +4,27 @@ import { useState, useMemo, useEffect } from "react";
 import {
   ArrowLeft, Dumbbell, User, Calendar, Receipt, Activity, FileText, Clock,
   Phone, Mail, Check, AlertCircle, Edit, Trash2, Send, Download, Eye, EyeOff, ShieldAlert,
-  UserX, Heart, Users, ShieldCheck, Printer, Plus, AlertTriangle, MessageSquare, QrCode
+  UserX, Heart, Users, ShieldCheck, Printer, Plus, AlertTriangle, MessageSquare, QrCode, X,
+  Fingerprint, CheckCircle2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+const formatDate = (date: Date) => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
+};
 
 export const Route = createFileRoute("/admin/members/$id")({
   head: () => ({
@@ -23,7 +36,7 @@ export const Route = createFileRoute("/admin/members/$id")({
   component: MemberDetails,
 });
 
-type TabId = "overview" | "attendance" | "payments" | "membership" | "activity";
+type TabId = "overview" | "biometric" | "attendance" | "payments" | "membership" | "activity";
 
 interface MemberDbEntry {
   name: string;
@@ -47,6 +60,9 @@ interface MemberDbEntry {
   emergencyMobile: string;
   aadhaar: string;
   notes: string;
+  biometric?: "Registered" | "Not Set";
+  biometricDate?: string;
+  biometricBy?: string;
 }
 
 const dummyMembersDb: Record<string, MemberDbEntry> = {
@@ -230,6 +246,41 @@ const dummyMembersDb: Record<string, MemberDbEntry> = {
   }
 };
 
+interface PaymentRecord {
+  date: string;
+  plan: string;
+  amount: string;
+  method: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  ref?: string;
+  notes?: string;
+}
+
+const seedPayments = (member: MemberDbEntry): PaymentRecord[] => {
+  if (member.memberId === "IG-2024-0042") { // Rahul Sharma
+    return [
+      { date: "12 Feb 2025", plan: "Quarterly Premium", method: "UPI (GPay)", amount: "₹3,999", startDate: "12 Feb 2025", endDate: "15 Aug 2025", status: "Paid" },
+      { date: "12 Nov 2024", plan: "Quarterly Premium", method: "UPI (PhonePe)", amount: "₹3,999", startDate: "12 Nov 2024", endDate: "12 Feb 2025", status: "Paid" },
+      { date: "12 Aug 2024", plan: "Monthly Standard", method: "Cash", amount: "₹1,499", startDate: "12 Aug 2024", endDate: "12 Nov 2024", status: "Paid" },
+    ];
+  }
+  
+  const amount = member.plan.includes("Annual") ? "₹13,999" : member.plan.includes("Quarterly") ? "₹3,999" : "₹1,499";
+  return [
+    {
+      date: member.joined,
+      plan: member.plan,
+      method: "UPI",
+      amount: amount,
+      startDate: member.joined,
+      endDate: member.validUntil,
+      status: "Paid"
+    }
+  ];
+};
+
 function MemberDetails() {
   const navigate = useNavigate();
   const { id } = Route.useParams();
@@ -238,10 +289,101 @@ function MemberDetails() {
   const [showAadhaar, setShowAadhaar] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
   const [addPaymentModal, setAddPaymentModal] = useState(false);
+  const [biometricModalOpen, setBiometricModalOpen] = useState(false);
+  const [confirmRemoveModalOpen, setConfirmRemoveModalOpen] = useState(false);
+  const [presentCheckboxChecked, setPresentCheckboxChecked] = useState(false);
   
   // Manual Payment Form
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("Cash");
+
+  // Renewal Modal State
+  const [renewModalOpen, setRenewModalOpen] = useState(false);
+  const [suspendModalOpen, setSuspendModalOpen] = useState(false);
+  const [renewPlan, setRenewPlan] = useState("");
+  const [renewStartDate, setRenewStartDate] = useState("");
+  const [renewAmount, setRenewAmount] = useState("");
+  const [renewMethod, setRenewMethod] = useState("Cash");
+  const [renewReference, setRenewReference] = useState("");
+  const [renewNotes, setRenewNotes] = useState("");
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+
+  const calculatedEndDate = useMemo(() => {
+    if (!renewStartDate) return null;
+    const start = new Date(renewStartDate);
+    if (isNaN(start.getTime())) return null;
+
+    if (renewPlan === "Monthly Standard") {
+      start.setMonth(start.getMonth() + 1);
+    } else if (renewPlan === "Quarterly Premium") {
+      start.setMonth(start.getMonth() + 3);
+    } else if (renewPlan === "Annual Elite") {
+      start.setMonth(start.getMonth() + 12);
+    }
+    return start;
+  }, [renewStartDate, renewPlan]);
+
+  useEffect(() => {
+    if (renewPlan === "Monthly Standard") {
+      setRenewAmount("1499");
+    } else if (renewPlan === "Quarterly Premium") {
+      setRenewAmount("3999");
+    } else if (renewPlan === "Annual Elite") {
+      setRenewAmount("13999");
+    }
+  }, [renewPlan]);
+
+  const handleOpenRenewModal = () => {
+    if (!member) return;
+    setRenewPlan(member.plan);
+    
+    // Set start date to local today
+    const today = new Date();
+    const offset = today.getTimezoneOffset();
+    const localToday = new Date(today.getTime() - (offset * 60 * 1000));
+    setRenewStartDate(localToday.toISOString().split("T")[0]);
+    
+    setRenewMethod("Cash");
+    setRenewReference("");
+    setRenewNotes("");
+    setRenewModalOpen(true);
+  };
+
+  const handleRemoveBiometric = () => {
+    if (!member) return;
+    setMember(prev => prev ? { ...prev, biometric: "Not Set" } : null);
+    
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const updated = users.map((u: any) => u.memberId === member.memberId ? { ...u, biometric: "Not Set" } : u);
+        localStorage.setItem("registered_users", JSON.stringify(updated));
+      } catch(e) {}
+    }
+
+    const logsStr = localStorage.getItem(`activity_logs_${member.memberId}`);
+    let logs = [];
+    if (logsStr) {
+      try { logs = JSON.parse(logsStr); } catch (e) {}
+    } else {
+      logs = [
+        { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
+        { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+        { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+        { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+        { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+      ];
+    }
+    const newEntry = {
+      title: "Biometric removed",
+      date: "29 May 2025",
+      desc: "Biometric access removed — 29 May 2025 — by Gaurav Mehta"
+    };
+    localStorage.setItem(`activity_logs_${member.memberId}`, JSON.stringify([newEntry, ...logs]));
+
+    toast.error("Biometric access removed");
+  };
 
   // Load member details dynamically
   useEffect(() => {
@@ -260,12 +402,12 @@ function MemberDetails() {
               name: matched.fullName,
               memberId: matched.memberId,
               plan: matched.plan === "quarterly" ? "Quarterly Premium" : matched.plan === "annual" ? "Annual Elite" : "Monthly Standard",
-              status: matched.paymentMode === "online" ? "Active" : "Pending Payment",
+              status: matched.status || (matched.paymentMode === "online" ? "Active" : "Pending Payment"),
               location: "Hyderabad",
               mobile: matched.mobile.startsWith("+91") ? matched.mobile : `+91 ${matched.mobile}`,
               email: matched.email,
               joined: "Recently",
-              validUntil: matched.plan === "quarterly" ? "3 Months From Now" : matched.plan === "annual" ? "1 Year From Now" : "1 Month From Now",
+              validUntil: matched.validUntil || (matched.plan === "quarterly" ? "3 Months From Now" : matched.plan === "annual" ? "1 Year From Now" : "1 Month From Now"),
               height: matched.height || "175 cm",
               weight: matched.weight || "72 kg",
               bmi: matched.height && matched.weight ? +(parseFloat(matched.weight)/((parseFloat(matched.height)/100)**2)).toFixed(1) : 23.5,
@@ -276,7 +418,10 @@ function MemberDetails() {
               emergencyName: matched.emergencyName || "Not Provided",
               emergencyMobile: matched.emergencyMobile || "Not Provided",
               aadhaar: matched.aadhaar || "XXXX-XXXX-XXXX",
-              notes: matched.notes || "Registered Walkin/Online queue user."
+              notes: matched.notes || "Registered Walkin/Online queue user.",
+              biometric: matched.biometric || (["Sneha Reddy", "Vikram Singh", "Arjun Mehta", "Rohit Gupta", "Meera Joshi"].includes(matched.fullName) ? "Not Set" : "Registered"),
+              biometricDate: matched.biometricDate || (matched.biometric === "Registered" || !matched.biometric ? "20 Mar 2024" : undefined),
+              biometricBy: matched.biometricBy || (matched.biometric === "Registered" || !matched.biometric ? "Staff Suresh Kumar" : undefined)
             };
             setMember(mapped);
             setStaffNotes(mapped.notes);
@@ -289,17 +434,62 @@ function MemberDetails() {
     }
 
     // 2. Lookup in static db
-    const dbEntry = dummyMembersDb[id];
+    const dbEntry = dummyMembersDb[id] || dummyMembersDb["IG-2024-0042"];
     if (dbEntry) {
-      setMember(dbEntry);
+      let finalBiometric = dbEntry.biometric;
+      let finalStatus = dbEntry.status;
+      let finalPlan = dbEntry.plan;
+      let finalValidUntil = dbEntry.validUntil;
+
+      // Find in localStorage to get latest updates if any
+      if (usersStr) {
+        try {
+          const users = JSON.parse(usersStr);
+          const matchedStorage = users.find((u: any) => u.memberId === dbEntry.memberId || u.fullName === dbEntry.name);
+          if (matchedStorage) {
+            finalBiometric = matchedStorage.biometric;
+            finalStatus = matchedStorage.status || (matchedStorage.paymentMode === "online" ? "Active" : "Pending Payment");
+            if (matchedStorage.plan) {
+              finalPlan = matchedStorage.plan === "quarterly" ? "Quarterly Premium" : matchedStorage.plan === "annual" ? "Annual Elite" : "Monthly Standard";
+            }
+            if (matchedStorage.validUntil) {
+              finalValidUntil = matchedStorage.validUntil;
+            }
+          }
+        } catch(e){}
+      }
+
+      if (!finalBiometric) {
+        finalBiometric = ["Sneha Reddy", "Vikram Singh", "Arjun Mehta", "Rohit Gupta", "Meera Joshi"].includes(dbEntry.name) ? "Not Set" : "Registered";
+      }
+
+      setMember({
+        ...dbEntry,
+        status: finalStatus,
+        plan: finalPlan,
+        validUntil: finalValidUntil,
+        biometric: finalBiometric,
+        biometricDate: dbEntry.biometricDate || (finalBiometric === "Registered" ? "20 Mar 2024" : undefined),
+        biometricBy: dbEntry.biometricBy || (finalBiometric === "Registered" ? "Staff Suresh Kumar" : undefined)
+      });
       setStaffNotes(dbEntry.notes);
-    } else {
-      // Fallback
-      const fallback = dummyMembersDb["IG-2024-0042"];
-      setMember(fallback);
-      setStaffNotes(fallback.notes);
     }
   }, [id]);
+
+  // Load payments from localStorage or seed
+  useEffect(() => {
+    if (!member) return;
+    const storedPayments = localStorage.getItem(`payments_${member.memberId}`);
+    if (storedPayments) {
+      try {
+        setPayments(JSON.parse(storedPayments));
+        return;
+      } catch (e) {}
+    }
+    const seeded = seedPayments(member);
+    setPayments(seeded);
+    localStorage.setItem(`payments_${member.memberId}`, JSON.stringify(seeded));
+  }, [member?.memberId]);
 
   const handleSaveNotes = () => {
     if (member) {
@@ -308,26 +498,209 @@ function MemberDetails() {
     }
   };
 
-  const handleRenew = () => {
-    if (member) {
-      setMember({
-        ...member,
-        status: "Active",
-        validUntil: "31 Dec 2026",
-        statusText: undefined
-      });
-      toast.success(`Membership for ${member.name} renewed successfully!`);
+  const handleActivateRenewal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!member || !calculatedEndDate) return;
+
+    const newExpiryStr = formatDate(calculatedEndDate);
+    const amountVal = parseFloat(renewAmount);
+    const amountStr = isNaN(amountVal) ? `₹0` : `₹${amountVal.toLocaleString("en-IN")}`;
+
+    // 1. Update component member state
+    setMember(prev => prev ? {
+      ...prev,
+      status: "Active",
+      plan: renewPlan,
+      validUntil: newExpiryStr,
+      statusText: undefined
+    } : null);
+
+    // 2. Update registered_users database in localStorage
+    const usersStr = localStorage.getItem("registered_users");
+    let users = [];
+    if (usersStr) {
+      try { users = JSON.parse(usersStr); } catch (e) {}
     }
+    const index = users.findIndex((u: any) => u.memberId === member.memberId);
+    const storagePlan = renewPlan === "Quarterly Premium" ? "quarterly" : renewPlan === "Annual Elite" ? "annual" : "monthly";
+
+    if (index >= 0) {
+      users[index] = {
+        ...users[index],
+        status: "Active",
+        plan: storagePlan,
+        validUntil: newExpiryStr
+      };
+    } else {
+      const newUser = {
+        fullName: member.name,
+        memberId: member.memberId,
+        mobile: member.mobile.replace("+91 ", ""),
+        email: member.email,
+        plan: storagePlan,
+        status: "Active",
+        validUntil: newExpiryStr,
+        biometric: member.biometric || "Registered",
+        height: member.height,
+        weight: member.weight,
+        bloodGroup: member.bloodGroup,
+        goals: member.goals,
+        conditions: member.conditions ? member.conditions.split(", ") : [],
+        notes: member.notes
+      };
+      users.push(newUser);
+    }
+    localStorage.setItem("registered_users", JSON.stringify(users));
+
+    // 3. Add entry to payment history (payments state & localStorage)
+    const todayFormatted = formatDate(new Date());
+    const newPayment: PaymentRecord = {
+      date: todayFormatted,
+      plan: renewPlan,
+      method: renewMethod + (renewReference ? ` (${renewReference})` : ""),
+      amount: amountStr,
+      startDate: formatDate(new Date(renewStartDate)),
+      endDate: newExpiryStr,
+      status: "Paid",
+      ref: renewReference || undefined,
+      notes: renewNotes || undefined
+    };
+
+    const updatedPayments = [newPayment, ...payments];
+    setPayments(updatedPayments);
+    localStorage.setItem(`payments_${member.memberId}`, JSON.stringify(updatedPayments));
+
+    // 4. Update activity logs
+    const logsStr = localStorage.getItem(`activity_logs_${member.memberId}`);
+    let logs = [];
+    if (logsStr) {
+      try { logs = JSON.parse(logsStr); } catch (e) {}
+    } else {
+      logs = [
+        { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+        { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+        { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+        { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+      ];
+    }
+    const newLogEntry = {
+      title: `Membership Renewed`,
+      date: todayFormatted,
+      desc: `Renewed to ${renewPlan} (${amountStr}) via ${renewMethod}. Period: ${formatDate(new Date(renewStartDate))} to ${newExpiryStr}.`
+    };
+    localStorage.setItem(`activity_logs_${member.memberId}`, JSON.stringify([newLogEntry, ...logs]));
+
+    // 5. Success notifications
+    toast.success(`Membership for ${member.name} renewed successfully!`);
+    setRenewModalOpen(false);
   };
 
   const handleSuspend = () => {
     if (member) {
-      setMember({
+      const reason = window.prompt(`Enter suspension reason for ${member.name} (optional):`);
+      if (reason === null) return; // Cancelled
+      
+      const updatedMember = {
         ...member,
-        status: "Suspended"
-      });
+        status: "Suspended" as const,
+        suspensionReason: reason || undefined
+      };
+      
+      setMember(updatedMember);
+      
+      const usersStr = localStorage.getItem("registered_users");
+      if (usersStr) {
+        try {
+          const users = JSON.parse(usersStr);
+          const updated = users.map((u: any) => u.memberId === member.memberId ? { ...u, status: "Suspended", suspensionReason: reason || undefined } : u);
+          localStorage.setItem("registered_users", JSON.stringify(updated));
+        } catch (e) {}
+      }
+      
       toast.error(`Membership for ${member.name} suspended.`);
     }
+  };
+
+  const handleApprove = () => {
+    if (!member) return;
+    setMember(prev => prev ? { ...prev, status: "Active", biometric: "Not Set" } : null);
+
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const updated = users.map((u: any) => u.memberId === member.memberId ? { ...u, status: "Active", biometric: "Not Set" } : u);
+        localStorage.setItem("registered_users", JSON.stringify(updated));
+      } catch (e) {}
+    }
+
+    // Write activity log
+    const logsStr = localStorage.getItem(`activity_logs_${member.memberId}`);
+    let logs = [];
+    if (logsStr) {
+      try { logs = JSON.parse(logsStr); } catch (e) {}
+    } else {
+      logs = [
+        { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
+        { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+        { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+        { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+        { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+      ];
+    }
+    const newEntry = {
+      title: "Account approved by Admin",
+      date: "29 May 2025",
+      desc: "Account approved by Admin Gaurav Mehta. Verification complete."
+    };
+    localStorage.setItem(`activity_logs_${member.memberId}`, JSON.stringify([newEntry, ...logs]));
+
+    toast.success(`Account approved for ${member.name}!`);
+  };
+
+  const handleVerifyPayment = () => {
+    if (!member) return;
+    setMember(prev => prev ? { ...prev, status: "Active", biometric: "Not Set" } : null);
+
+    const usersStr = localStorage.getItem("registered_users");
+    if (usersStr) {
+      try {
+        const users = JSON.parse(usersStr);
+        const updated = users.map((u: any) => u.memberId === member.memberId ? { ...u, status: "Active", paymentMode: "online", biometric: "Not Set" } : u);
+        localStorage.setItem("registered_users", JSON.stringify(updated));
+      } catch (e) {}
+    }
+
+    // Write activity log
+    const logsStr = localStorage.getItem(`activity_logs_${member.memberId}`);
+    let logs = [];
+    if (logsStr) {
+      try { logs = JSON.parse(logsStr); } catch (e) {}
+    } else {
+      logs = [
+        { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
+        { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+        { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+        { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+        { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+      ];
+    }
+    const newEntry = {
+      title: "Payment verified by Admin",
+      date: "29 May 2025",
+      desc: "Gym payment verified and status updated to Active by Gaurav Mehta."
+    };
+    localStorage.setItem(`activity_logs_${member.memberId}`, JSON.stringify([newEntry, ...logs]));
+
+    toast.success(
+      <div className="space-y-1 text-left">
+        <div className="font-semibold text-white">✅ {member.name} is now active!</div>
+        <div className="text-xs text-[#8A8A8A] font-normal leading-relaxed">
+          Remind them to register their fingerprint before their first workout.
+        </div>
+      </div>,
+      { duration: 6000 }
+    );
   };
 
   const handleSendSMS = () => {
@@ -338,8 +711,31 @@ function MemberDetails() {
 
   const handleManualPaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!payAmount) return;
-    toast.success(`Manual payment of ₹${parseFloat(payAmount).toLocaleString("en-IN")} processed via ${payMethod}`);
+    if (!member || !payAmount) return;
+    
+    const amountVal = parseFloat(payAmount);
+    if (isNaN(amountVal)) return;
+
+    const todayFormatted = formatDate(new Date());
+    
+    // Create new payment entry
+    const newPayment: PaymentRecord = {
+      date: todayFormatted,
+      plan: member.plan, // Use current plan for manual payment
+      method: payMethod,
+      amount: `₹${amountVal.toLocaleString("en-IN")}`,
+      startDate: todayFormatted,
+      endDate: member.validUntil,
+      status: "Paid",
+      ref: "Manual",
+      notes: "Manual entry from payments desk"
+    };
+
+    const updatedPayments = [newPayment, ...payments];
+    setPayments(updatedPayments);
+    localStorage.setItem(`payments_${member.memberId}`, JSON.stringify(updatedPayments));
+
+    toast.success(`Manual payment of ₹${amountVal.toLocaleString("en-IN")} processed via ${payMethod}`);
     setAddPaymentModal(false);
     setPayAmount("");
   };
@@ -353,12 +749,21 @@ function MemberDetails() {
       
       {/* Back Header */}
       <div className="flex items-center justify-between pb-4 border-b border-[#222222]">
-        <button
-          onClick={() => navigate({ to: "/admin" })}
-          className="text-sm text-[#8A8A8A] hover:text-white flex items-center gap-1.5 transition-colors font-semibold uppercase tracking-wider"
-        >
-          <ArrowLeft className="h-4 w-4" /> All Members
-        </button>
+        <div className="flex flex-col gap-1.5">
+          <button
+            onClick={() => navigate({ to: "/admin" })}
+            className="text-sm text-[#8A8A8A] hover:text-white flex items-center gap-1.5 transition-colors font-semibold uppercase tracking-wider text-left"
+          >
+            <ArrowLeft className="h-4 w-4" /> All Members
+          </button>
+          <div className="text-[10px] text-[#555] flex items-center gap-1 font-mono uppercase font-semibold">
+            <Link to="/admin" className="hover:text-[#8a8a8a] transition-colors">Admin</Link>
+            <span>→</span>
+            <Link to="/admin" className="hover:text-[#8a8a8a] transition-colors">Members</Link>
+            <span>→</span>
+            <span className="text-[#8a8a8a]">{member.name}</span>
+          </div>
+        </div>
         
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-[#E02020] flex items-center justify-center">
@@ -415,35 +820,127 @@ function MemberDetails() {
             <div className="flex justify-between"><span className="text-[#8A8A8A]">Home Branch</span><span className="font-semibold text-white truncate max-w-[160px]">{member.location.split(",")[0]}</span></div>
           </div>
 
+          {/* Biometric Status Card */}
+          <div className="border-t border-[#1A1A1A] pt-4 space-y-2">
+            <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold block mb-1">Biometric Access</span>
+            {member.biometric === "Registered" ? (
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-emerald-400 flex items-center gap-1">
+                    ✅ Biometric Active
+                  </span>
+                  <span className="text-[9px] text-[#8A8A8A]">Last used: Today 6:14 AM</span>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-[#1A1A1A]">
+                  <button
+                    onClick={() => setBiometricModalOpen(true)}
+                    className="text-[10px] bg-[#1C1C1C] hover:bg-[#2A2A2A] border border-[#2A2A2A] text-white px-2 py-1 rounded transition-colors uppercase font-bold"
+                  >
+                    Re-register
+                  </button>
+                  <button
+                    onClick={handleRemoveBiometric}
+                    className="text-[10px] text-red-400 hover:text-red-300 font-bold transition-colors uppercase cursor-pointer"
+                  >
+                    Remove Access
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-red-500/20 bg-red-500/5 p-3 space-y-2 text-xs">
+                <p className="font-semibold text-red-500 flex items-center gap-1">
+                  ⚠️ Biometric not registered
+                </p>
+                <p className="text-[11px] text-[#8A8A8A] leading-relaxed">
+                  Member cannot enter gym without fingerprint check-in at turnstile gates.
+                </p>
+                <Button
+                  onClick={() => setBiometricModalOpen(true)}
+                  className="w-full bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-8 text-[10px] uppercase mt-1 animate-pulse"
+                >
+                  Register Biometric
+                </Button>
+              </div>
+            )}
+          </div>
+
           {/* Quick Actions Panel */}
           <div className="border-t border-[#1A1A1A] pt-4 space-y-2">
             <span className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold block mb-1">Administrative Controls</span>
             
-            <Button
-              onClick={handleRenew}
-              className="w-full bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-9 text-xs uppercase"
-            >
-              Renew Membership
-            </Button>
-            
-            <Button
-              onClick={handleSuspend}
-              variant="outline"
-              className="w-full border-red-600/20 text-red-400 bg-transparent hover:bg-red-600/10 h-9 text-xs font-bold uppercase"
-            >
-              Suspend Member
-            </Button>
+            {member.status === "Pending Approval" ? (
+              <Button
+                onClick={handleApprove}
+                className="w-full bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-9 text-xs uppercase"
+              >
+                Approve Application
+              </Button>
+            ) : member.status === "Pending Payment" ? (
+              <Button
+                onClick={handleVerifyPayment}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-9 text-xs uppercase"
+              >
+                Verify Payment
+              </Button>
+            ) : (
+              <>
+                <Button
+                  onClick={handleOpenRenewModal}
+                  className="w-full bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-9 text-xs uppercase"
+                >
+                  Renew Membership
+                </Button>
+                
+                <Button
+                  onClick={() => setSuspendModalOpen(true)}
+                  variant="outline"
+                  className="w-full border-red-600/20 text-red-400 bg-transparent hover:bg-red-600/10 h-9 text-xs font-bold uppercase"
+                >
+                  Suspend Member
+                </Button>
+              </>
+            )}
 
-            <div className="grid grid-cols-2 gap-2">
+            {/* Biometric Status Row */}
+            <div className="flex items-center justify-between py-2 border-t border-b border-[#1A1A1A] my-2 text-xs">
+              <span className="text-[#8A8A8A] font-semibold">Biometric:</span>
+              {member.biometric === "Registered" ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px] font-bold uppercase tracking-wider py-0.5 px-2 rounded-full">
+                    ✅ Fingerprint Active
+                  </span>
+                  <button
+                    onClick={() => setBiometricModalOpen(true)}
+                    className="text-[#8A8A8A] hover:text-white underline text-[9px] font-bold cursor-pointer bg-transparent border-0 p-0"
+                  >
+                    Re-register
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-red-500/10 text-red-400 border border-red-500/20 text-[9px] font-bold uppercase tracking-wider py-0.5 px-2 rounded-full">
+                    ❌ No Biometric
+                  </span>
+                  <button
+                    onClick={() => setBiometricModalOpen(true)}
+                    className="text-red-500 hover:text-red-400 underline text-[9px] font-bold cursor-pointer bg-transparent border-0 p-0"
+                  >
+                    Register
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Button
                 onClick={handleSendSMS}
-                className="bg-[#1A1A1A] hover:bg-[#252525] border border-[#222222] text-[#CFCFCF] h-9 text-[10px] font-bold uppercase"
+                className="w-full bg-[#1A1A1A] hover:bg-[#252525] border border-[#222222] text-[#CFCFCF] min-h-[44px] h-11 text-[10px] font-bold uppercase"
               >
                 <MessageSquare className="h-3.5 w-3.5 mr-1" /> Send SMS
               </Button>
               <Button
                 onClick={() => toast.info("Profile edit panel loaded (Simulation)")}
-                className="bg-[#1A1A1A] hover:bg-[#252525] border border-[#222222] text-[#CFCFCF] h-9 text-[10px] font-bold uppercase"
+                className="w-full bg-[#1A1A1A] hover:bg-[#252525] border border-[#222222] text-[#CFCFCF] min-h-[44px] h-11 text-[10px] font-bold uppercase"
               >
                 <Edit className="h-3.5 w-3.5 mr-1" /> Edit Profile
               </Button>
@@ -461,9 +958,10 @@ function MemberDetails() {
         {/* RIGHT COLUMN: DETAILED TABS */}
         <div className="lg:col-span-2 space-y-6">
           {/* Tabs Nav Header */}
-          <div className="flex overflow-x-auto bg-[#0A0A0A] border border-[#222222] rounded-xl p-1.5 scrollbar-none">
+          <div className="flex overflow-x-auto bg-[#0A0A0A] border border-[#222222] rounded-xl p-1.5 scrollbar-none snap-x snap-mandatory -mx-px">
             {([
               { id: "overview", label: "Overview", icon: User },
+              { id: "biometric", label: "Biometric", icon: Fingerprint },
               { id: "attendance", label: "Attendance", icon: Calendar },
               { id: "payments", label: "Payments", icon: Receipt },
               { id: "membership", label: "History", icon: Clock },
@@ -510,15 +1008,24 @@ function MemberDetails() {
                     handleSaveNotes={handleSaveNotes}
                   />
                 )}
+                {activeTab === "biometric" && (
+                  <SubTabBiometric
+                    member={member}
+                    setBiometricModalOpen={setBiometricModalOpen}
+                    setConfirmRemoveModalOpen={setConfirmRemoveModalOpen}
+                    setActiveTab={setActiveTab}
+                  />
+                )}
                 {activeTab === "attendance" && <SubTabAttendance />}
                 {activeTab === "payments" && (
                   <SubTabPayments
                     member={member}
+                    payments={payments}
                     setAddPaymentModal={setAddPaymentModal}
                   />
                 )}
-                {activeTab === "membership" && <SubTabMembershipHistory member={member} />}
-                {activeTab === "activity" && <SubTabActivityLog />}
+                {activeTab === "membership" && <SubTabMembershipHistory member={member} payments={payments} />}
+                {activeTab === "activity" && <SubTabActivityLog memberId={member.memberId} />}
               </motion.div>
             </AnimatePresence>
           </div>
@@ -528,7 +1035,7 @@ function MemberDetails() {
 
       {/* Manual Payment Entry Modal */}
       {addPaymentModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+        <div className="modal-overlay z-50">
           <motion.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -582,12 +1089,537 @@ function MemberDetails() {
           </motion.div>
         </div>
       )}
+      {/* Renewal Modal */}
+      {renewModalOpen && member && (
+        <div className="modal-overlay z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md rounded-xl bg-[#111111] border border-[#222222] overflow-hidden shadow-2xl"
+          >
+            <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">Billing Desk</span>
+                <h3 className="font-display text-lg text-white mt-0.5 uppercase font-bold text-left">Renew Membership — {member.name}</h3>
+              </div>
+              <button onClick={() => setRenewModalOpen(false)} className="text-[#8A8A8A] hover:text-white bg-transparent border-0 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
+            <form onSubmit={handleActivateRenewal} className="p-6 space-y-4 text-xs text-left">
+              {/* Plan Selector */}
+              <div className="space-y-2">
+                <Label className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Select Subscription Plan</Label>
+                <Select value={renewPlan} onValueChange={setRenewPlan}>
+                  <SelectTrigger className="bg-[#0A0A0A] border-[#222222] h-11 text-white">
+                    <SelectValue placeholder="Select Plan" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#111111] border-[#222222] text-white">
+                    <SelectItem value="Monthly Standard">Monthly Standard (₹1,499)</SelectItem>
+                    <SelectItem value="Quarterly Premium">Quarterly Premium (₹3,999)</SelectItem>
+                    <SelectItem value="Annual Elite">Annual Elite (₹13,999)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Start Date */}
+              <div className="space-y-2">
+                <Label htmlFor="startDate" className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Membership Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={renewStartDate}
+                  onChange={(e) => setRenewStartDate(e.target.value)}
+                  required
+                  className="bg-[#0A0A0A] border-[#222222] h-11 text-white font-sans"
+                />
+              </div>
+
+              {/* End Date (Calculated) */}
+              <div className="space-y-2">
+                <Label className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Calculated Expiry Date</Label>
+                <div className="bg-[#0A0A0A] border border-[#222222] h-11 rounded-md px-3 flex items-center text-[#8A8A8A] font-medium font-sans">
+                  {calculatedEndDate ? formatDate(calculatedEndDate) : "Select a start date"}
+                </div>
+              </div>
+
+              {/* Payment Amount */}
+              <div className="space-y-2">
+                <Label htmlFor="renewAmt" className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Payment Amount (INR)</Label>
+                <Input
+                  id="renewAmt"
+                  type="number"
+                  placeholder="3999"
+                  value={renewAmount}
+                  onChange={(e) => setRenewAmount(e.target.value)}
+                  required
+                  className="bg-[#0A0A0A] border-[#222222] h-11 text-white"
+                />
+              </div>
+
+              {/* Payment Method */}
+              <div className="space-y-2">
+                <Label className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Payment Method</Label>
+                <Select value={renewMethod} onValueChange={setRenewMethod}>
+                  <SelectTrigger className="bg-[#0A0A0A] border-[#222222] h-11 text-white">
+                    <SelectValue placeholder="Select Method" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#111111] border-[#222222] text-white">
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="UPI">UPI</SelectItem>
+                    <SelectItem value="Card">Card</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Transaction Reference */}
+              <div className="space-y-2">
+                <Label htmlFor="txnRef" className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Transaction Reference (Optional)</Label>
+                <Input
+                  id="txnRef"
+                  type="text"
+                  placeholder="e.g. UPI Ref Number, Bank transfer ID"
+                  value={renewReference}
+                  onChange={(e) => setRenewReference(e.target.value)}
+                  className="bg-[#0A0A0A] border-[#222222] h-11 text-white"
+                />
+              </div>
+
+              {/* Staff Notes */}
+              <div className="space-y-2">
+                <Label htmlFor="renewNotes" className="text-[9px] uppercase tracking-widest text-[#8A8A8A] font-bold">Staff Notes</Label>
+                <Input
+                  id="renewNotes"
+                  type="text"
+                  placeholder="e.g. Standard renewal, discount applied"
+                  value={renewNotes}
+                  onChange={(e) => setRenewNotes(e.target.value)}
+                  className="bg-[#0A0A0A] border-[#222222] h-11 text-white"
+                />
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  type="submit"
+                  className="flex-1 bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-11 uppercase text-xs"
+                >
+                  Activate Renewal
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setRenewModalOpen(false)}
+                  className="text-[#8A8A8A] hover:text-white bg-transparent border-0 cursor-pointer uppercase font-bold text-xs px-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      <ConfirmationModal
+        isOpen={suspendModalOpen}
+        onClose={() => setSuspendModalOpen(false)}
+        onConfirm={handleSuspend}
+        title="Suspend this member?"
+        description={`${member.name} will lose gym access immediately`}
+        confirmText="Confirm"
+        cancelText="Cancel"
+      />
+
+      {/* Biometric registration modal */}
+      {biometricModalOpen && member && (
+        <div className="modal-overlay z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md rounded-xl bg-[#111111] border border-[#222222] overflow-hidden shadow-2xl"
+          >
+            <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-4 flex items-center justify-between">
+              <div>
+                <span className="text-[9px] uppercase tracking-widest text-[#E02020] font-bold">ZKTeco SF300 Device Integration</span>
+                <h3 className="font-display text-lg text-white mt-0.5 uppercase font-bold text-left">Register Biometric — {member.name}</h3>
+              </div>
+              <button onClick={() => { setBiometricModalOpen(false); setPresentCheckboxChecked(false); }} className="text-[#8A8A8A] hover:text-white bg-transparent border-0 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-xs text-left">
+              {/* Member info strip */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-[#0A0A0A] border border-[#222222]">
+                <div className="h-10 w-10 rounded-full bg-[#E02020] flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
+                  {member.name.split(" ").map(n => n[0]).slice(0,2).join("")}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-white text-sm truncate">{member.name}</div>
+                  <div className="text-[10px] text-[#8A8A8A] truncate">{member.memberId} · {member.plan}</div>
+                </div>
+                <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase text-[8px] font-bold py-0.5 shrink-0">
+                  ✅ Active
+                </Badge>
+              </div>
+
+              {/* Step indicator */}
+              <div className="p-3 bg-[#0A0A0A] border border-[#1A1A1A] rounded-xl space-y-2">
+                <span className="text-[8px] uppercase tracking-wider text-[#8A8A8A] font-bold">Hardware Connection Steps</span>
+                <div className="space-y-1.5 font-sans">
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold">
+                    <span className="text-xs">●</span> <span>Step 1: Confirm identity</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-emerald-400 font-semibold animate-pulse">
+                    <span className="text-xs">●</span> <span>Step 2: Capture fingerprint</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[#555555]">
+                    <span className="text-xs">●</span> <span>Step 3: Verify registration</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-[#E02020]/5 border border-[#E02020]/20 rounded-lg text-[#CFCFCF] space-y-2 leading-relaxed">
+                <p>Ensure <strong className="text-white">{member.name}</strong> is physically present at reception with their photo ID.</p>
+                <p>Ask them to place their finger firmly on the <strong className="text-white">ZKTeco SF300</strong> device.</p>
+                <p className="text-amber-500 font-semibold animate-pulse">The device will beep once when captured successfully.</p>
+              </div>
+
+              {/* Checkbox */}
+              <div className="flex items-start gap-2.5 pt-1">
+                <input
+                  type="checkbox"
+                  id="present_checkbox"
+                  checked={presentCheckboxChecked}
+                  onChange={(e) => setPresentCheckboxChecked(e.target.checked)}
+                  className="mt-0.5 rounded border-[#222222] bg-[#0A0A0A] text-[#E02020] focus:ring-[#E02020]"
+                />
+                <label htmlFor="present_checkbox" className="text-[#CFCFCF] text-[11px] leading-snug cursor-pointer select-none">
+                  Member is present and fingerprint has been captured on device
+                </label>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  disabled={!presentCheckboxChecked}
+                  onClick={() => {
+                    const todayStr = "29 May 2025";
+                    const adminStr = "Gaurav Mehta (Admin)";
+                    
+                    setMember(prev => prev ? {
+                      ...prev,
+                      biometric: "Registered",
+                      biometricDate: todayStr,
+                      biometricBy: adminStr
+                    } : null);
+
+                    const usersStr = localStorage.getItem("registered_users");
+                    if (usersStr) {
+                      try {
+                        const users = JSON.parse(usersStr);
+                        const updated = users.map((u: any) => u.memberId === member.memberId ? {
+                          ...u,
+                          biometric: "Registered",
+                          biometricDate: todayStr,
+                          biometricBy: adminStr
+                        } : u);
+                        localStorage.setItem("registered_users", JSON.stringify(updated));
+                      } catch(e) {}
+                    }
+
+                    // Write activity log
+                    const logsStr = localStorage.getItem(`activity_logs_${member.memberId}`);
+                    let logs = [];
+                    if (logsStr) {
+                      try { logs = JSON.parse(logsStr); } catch (e) {}
+                    } else {
+                      logs = [
+                        { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
+                        { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+                        { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+                        { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+                        { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+                      ];
+                    }
+                    const newEntry = {
+                      title: "Biometric registered",
+                      date: todayStr,
+                      desc: `Biometric registered — ${todayStr} — by ${adminStr}`
+                    };
+                    localStorage.setItem(`activity_logs_${member.memberId}`, JSON.stringify([newEntry, ...logs]));
+
+                    toast.success(`Biometric registered for ${member.name} ✓`);
+                    setBiometricModalOpen(false);
+                    setPresentCheckboxChecked(false);
+                  }}
+                  className="flex-1 bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-10 uppercase text-xs disabled:opacity-50 disabled:hover:bg-[#E02020]"
+                >
+                  ✓ Confirm Registration
+                </Button>
+                <button
+                  onClick={() => { setBiometricModalOpen(false); setPresentCheckboxChecked(false); }}
+                  className="text-[#8A8A8A] hover:text-white uppercase font-bold text-xs px-2 cursor-pointer bg-transparent border-0"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Remove Biometric access confirmation modal */}
+      {confirmRemoveModalOpen && member && (
+        <div className="modal-overlay z-50">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md rounded-xl bg-[#111111] border border-[#222222] overflow-hidden shadow-2xl"
+          >
+            <div className="bg-[#0A0A0A] border-b border-[#222222] px-6 py-4 flex items-center justify-between">
+              <h3 className="font-display text-lg text-white font-bold text-left uppercase">Revoke Biometric Access</h3>
+              <button onClick={() => setConfirmRemoveModalOpen(false)} className="text-[#8A8A8A] hover:text-white bg-transparent border-0 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs text-left">
+              <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-xl space-y-2">
+                <p className="font-bold text-white text-sm">Remove biometric access for {member.name}?</p>
+                <p className="text-[#CFCFCF] text-[11px] leading-relaxed">
+                  They will not be able to enter the gym using fingerprint scan until re-registered.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  onClick={handleRemoveBiometric}
+                  className="flex-1 bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-10 uppercase text-xs"
+                >
+                  Confirm Remove
+                </Button>
+                <Button
+                  onClick={() => setConfirmRemoveModalOpen(false)}
+                  className="flex-1 bg-[#1A1A1A] hover:bg-[#252525] border border-[#222222] text-[#CFCFCF] font-bold h-10 uppercase text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ================= SUB TABS COMPONENTS =================
+
+// TAB: BIOMETRIC
+function SubTabBiometric({
+  member, setBiometricModalOpen, setConfirmRemoveModalOpen, setActiveTab
+}: {
+  member: MemberDbEntry;
+  setBiometricModalOpen: (b: boolean) => void;
+  setConfirmRemoveModalOpen: (b: boolean) => void;
+  setActiveTab: (tab: TabId) => void;
+}) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const accessLogs = useMemo(() => [
+    { date: "29 May 2025, 7:52 AM", direction: "Exit ↑", status: "Success", duration: "1h 38m" },
+    { date: "29 May 2025, 6:14 AM", direction: "Entry ↓", status: "Success", duration: "—" },
+    { date: "28 May 2025, 7:45 AM", direction: "Exit ↑", status: "Success", duration: "1h 43m" },
+    { date: "28 May 2025, 6:02 AM", direction: "Entry ↓", status: "Success", duration: "—" },
+    { date: "27 May 2025, 8:21 PM", direction: "Exit ↑", status: "Success", duration: "1h 23m" },
+    { date: "27 May 2025, 6:58 PM", direction: "Entry ↓", status: "Success", duration: "—" },
+    { date: "26 May 2025, 7:38 AM", direction: "Exit ↑", status: "Success", duration: "1h 33m" },
+    { date: "26 May 2025, 6:05 AM", direction: "Entry ↓", status: "Success", duration: "—" },
+    { date: "24 May 2025, 7:30 AM", direction: "Exit ↑", status: "Success", duration: "1h 32m" },
+    { date: "24 May 2025, 5:58 AM", direction: "Entry ↓", status: "Success", duration: "—" },
+    { date: "15 Mar 2025, 7:30 AM", direction: "Entry ↓", status: "Failed", duration: "—" }
+  ], []);
+
+  const paginatedLogs = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return accessLogs.slice(startIndex, startIndex + itemsPerPage);
+  }, [currentPage, accessLogs]);
+
+  const totalPages = Math.ceil(accessLogs.length / itemsPerPage);
+
+  const regDate = member.biometricDate || "20 Mar 2024";
+  const regBy = member.biometricBy || "Staff Suresh Kumar";
+
+  return (
+    <div className="space-y-6 text-left">
+      {/* Top Status Card */}
+      {member.biometric === "Registered" ? (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-6 shadow-lg shadow-emerald-500/5 flex flex-col md:flex-row items-center gap-6">
+          <div className="h-16 w-16 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 border border-emerald-500/20">
+            <Fingerprint className="h-10 w-10 text-emerald-400" />
+          </div>
+          <div className="flex-1 space-y-1 text-center md:text-left">
+            <span className="text-[10px] uppercase tracking-widest text-emerald-400 font-bold">Biometric Status</span>
+            <h4 className="font-display text-xl font-bold text-white uppercase tracking-wide">Biometric Active</h4>
+            <p className="text-xs text-[#CFCFCF]">{member.name}'s fingerprint is registered and gym access is enabled</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-3 text-[11px] text-[#8A8A8A] font-sans border-t border-[#1A1A1A]">
+              <div>Registered on: <span className="text-white font-semibold">{regDate}</span></div>
+              <div>Registered by: <span className="text-white font-semibold">{regBy}</span></div>
+              <div>Last entry: <span className="text-white font-semibold">Today 6:14 AM</span></div>
+              <div>Last exit: <span className="text-white font-semibold">Today 7:52 AM</span></div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-6 shadow-lg shadow-red-500/5 flex flex-col md:flex-row items-center gap-6">
+          <div className="relative h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center shrink-0 border border-red-500/20">
+            <Fingerprint className="h-10 w-10 text-red-500 opacity-60" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="w-14 h-1.5 bg-red-500 rotate-[45deg] rounded-full border border-[#0A0A0A] shadow" />
+            </div>
+          </div>
+          <div className="flex-1 space-y-2 text-center md:text-left">
+            <div>
+              <span className="text-[10px] uppercase tracking-widest text-red-500 font-bold">Biometric Status</span>
+              <h4 className="font-display text-xl font-bold text-white uppercase tracking-wide">Biometric Not Registered</h4>
+              <p className="text-xs text-[#CFCFCF] mt-0.5">This member cannot enter the gym until their fingerprint is registered at reception</p>
+            </div>
+            <Button
+              onClick={() => setBiometricModalOpen(true)}
+              className="bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-9 px-5 text-xs uppercase"
+            >
+              Register Biometric Now
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Actions Section */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        {/* Card 1 */}
+        <div className="p-5 rounded-2xl border border-[#222222] bg-[#0A0A0A] space-y-4 flex flex-col justify-between animate-fade-in">
+          <div className="space-y-1">
+            <h5 className="font-display text-sm font-bold uppercase tracking-wider text-white">Register Fingerprint</h5>
+            <p className="text-xs text-[#8A8A8A] leading-relaxed">Ask member to place finger on the ZKTeco device at reception</p>
+          </div>
+          <div>
+            {member.biometric === "Registered" ? (
+              <div className="space-y-2">
+                <Button
+                  onClick={() => setBiometricModalOpen(true)}
+                  variant="outline"
+                  className="border-[#222222] text-[#CFCFCF] hover:bg-[#1C1C1C] h-9 text-xs uppercase font-bold w-full"
+                >
+                  Re-register Biometric
+                </Button>
+                <p className="text-[10px] text-[#666666]">Use this if member's fingerprint is no longer being recognised</p>
+              </div>
+            ) : (
+              <Button
+                onClick={() => setBiometricModalOpen(true)}
+                className="bg-[#E02020] hover:bg-[#C41818] text-white font-bold h-9 text-xs uppercase w-full"
+              >
+                Register Biometric
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Card 2 */}
+        <div className="p-5 rounded-2xl border border-[#222222] bg-[#0A0A0A] space-y-4 flex flex-col justify-between animate-fade-in">
+          <div className="space-y-1">
+            <h5 className="font-display text-sm font-bold uppercase tracking-wider text-white">Revoke Biometric Access</h5>
+            <p className="text-xs text-[#8A8A8A] leading-relaxed">Member will not be able to enter gym via fingerprint scan</p>
+          </div>
+          <div>
+            <Button
+              disabled={member.biometric !== "Registered"}
+              onClick={() => setConfirmRemoveModalOpen(true)}
+              variant="outline"
+              className="border-red-600/30 text-red-500 hover:bg-red-600/10 h-9 text-xs uppercase font-bold w-full disabled:opacity-30 disabled:pointer-events-none"
+            >
+              Remove Biometric Access
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Biometric Access Log */}
+      <div className="pt-4 border-t border-[#1A1A1A] space-y-4">
+        <div>
+          <h5 className="font-display text-sm font-bold uppercase tracking-wider text-white">Access History</h5>
+          <p className="text-[11px] text-[#8A8A8A]">Recent fingerprint scan activity</p>
+        </div>
+
+        <div className="overflow-x-auto border border-[#222222] rounded-xl bg-[#0A0A0A]">
+          <table className="w-full text-left border-collapse text-xs text-[#CFCFCF]">
+            <thead>
+              <tr className="border-b border-[#222222] bg-[#111111]/50 uppercase text-[9px] tracking-widest text-[#8A8A8A] font-bold">
+                <th className="px-5 py-3">Date & Time</th>
+                <th className="px-5 py-3">Direction</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Duration</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#161616]">
+              {paginatedLogs.map((log, idx) => {
+                const isFailed = log.status === "Failed";
+                return (
+                  <tr key={idx} className={cn("hover:bg-[#111111]/80 transition-colors", isFailed && "bg-red-500/5 hover:bg-red-500/10")}>
+                    <td className="px-5 py-2.5 font-medium text-white">{log.date}</td>
+                    <td className="px-5 py-2.5">
+                      <span className={cn(log.direction.includes("Entry") ? "text-emerald-400" : "text-amber-500")}>
+                        {log.direction}
+                      </span>
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <Badge className={cn(
+                        "text-[9px] font-bold uppercase py-0 px-2",
+                        isFailed ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      )}>
+                        {isFailed ? "❌ Failed" : "✅ Success"}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-2.5 font-mono text-[#8A8A8A]">{log.duration}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination controls */}
+        <div className="flex items-center justify-between text-xs pt-1">
+          <button
+            onClick={() => setActiveTab("attendance")}
+            className="text-xs text-[#E02020] hover:underline font-bold bg-transparent border-0 cursor-pointer p-0"
+          >
+            View full attendance history
+          </button>
+          
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              className="h-7 px-3 bg-[#111111] hover:bg-[#222222] border border-[#222222] text-white disabled:opacity-50 text-[10px] uppercase font-bold"
+            >
+              Prev
+            </Button>
+            <span className="text-[#8A8A8A]">Page {currentPage} of {totalPages}</span>
+            <Button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              className="h-7 px-3 bg-[#111111] hover:bg-[#222222] border border-[#222222] text-white disabled:opacity-50 text-[10px] uppercase font-bold"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // TAB 1: OVERVIEW
 function SubTabOverview({
@@ -810,16 +1842,13 @@ function SubTabAttendance() {
 
 // TAB 3: PAYMENTS
 function SubTabPayments({
-  member, setAddPaymentModal
+  member, payments, setAddPaymentModal
 }: {
   member: MemberDbEntry;
+  payments: PaymentRecord[];
   setAddPaymentModal: (b: boolean) => void;
 }) {
-  const transactions = [
-    { date: "12 Feb 2025", plan: "Quarterly Premium", method: "UPI (GPay)", amount: "₹3,999", status: "Paid" },
-    { date: "12 Nov 2024", plan: "Quarterly Premium", method: "UPI (PhonePe)", amount: "₹3,999", status: "Paid" },
-    { date: "12 Aug 2024", plan: "Monthly Standard", method: "Cash", amount: "₹1,499", status: "Paid" },
-  ];
+  const transactions = payments;
 
   const hasOutstanding = member.status === "Pending Payment" || member.status === "Expired";
   const outstandingAmount = member.plan.includes("Annual") 
@@ -901,12 +1930,19 @@ function SubTabPayments({
 }
 
 // TAB 4: MEMBERSHIP HISTORY
-function SubTabMembershipHistory({ member }: { member: MemberDbEntry }) {
-  const history = [
-    { plan: "Quarterly Premium", start: "12 Feb 2025", end: "15 Aug 2025", amount: "₹3,999", method: "UPI (GPay)" },
-    { plan: "Quarterly Premium", start: "12 Nov 2024", end: "12 Feb 2025", amount: "₹3,999", method: "UPI (PhonePe)" },
-    { plan: "Monthly Standard", start: "12 Aug 2024", end: "12 Nov 2024", amount: "₹1,499", method: "Cash" },
-  ];
+function SubTabMembershipHistory({
+  member, payments
+}: {
+  member: MemberDbEntry;
+  payments: PaymentRecord[];
+}) {
+  const history = payments.map(p => ({
+    plan: p.plan,
+    start: p.startDate,
+    end: p.endDate,
+    amount: p.amount,
+    method: p.method
+  }));
 
   return (
     <div className="space-y-6">
@@ -942,14 +1978,25 @@ function SubTabMembershipHistory({ member }: { member: MemberDbEntry }) {
 }
 
 // TAB 5: ACTIVITY LOG
-function SubTabActivityLog() {
-  const logs = [
-    { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
-    { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
-    { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
-    { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
-    { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
-  ];
+function SubTabActivityLog({ memberId }: { memberId: string }) {
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const logsStr = localStorage.getItem(`activity_logs_${memberId}`);
+    if (logsStr) {
+      try {
+        setLogs(JSON.parse(logsStr));
+        return;
+      } catch (e) {}
+    }
+    setLogs([
+      { title: "Membership renewed by Admin Gaurav", date: "12 Feb 2025", desc: "Approved cycle of Quarterly Premium (INV-2025-0182)" },
+      { title: "SMS sent - renewal reminder", date: "5 Feb 2025", desc: "Automated alert sent to member mobile +91 98765 43210" },
+      { title: "Biometric registered", date: "14 Feb 2024", desc: "Turnstile gate fingerprint and camera credentials synchronized" },
+      { title: "Account approved by Admin", date: "13 Feb 2024", desc: "Verified initial cash receipt and created Member pass ID" },
+      { title: "Application submitted", date: "12 Feb 2024", desc: "Registrant signup completed via ironforge.in/join" },
+    ]);
+  }, [memberId]);
 
   return (
     <div className="space-y-6">

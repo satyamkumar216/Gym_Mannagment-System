@@ -33,7 +33,7 @@ function Gallery() {
       <section className="border-b border-[#1A1A1A]">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-20 text-center">
           <div className="text-xs uppercase tracking-widest text-[#E02020] font-semibold">The Space</div>
-          <h1 className="font-display text-5xl sm:text-7xl mt-2">GALLERY</h1>
+          <h1 className="font-display text-[28px] sm:text-5xl md:text-7xl mt-2 break-words">GALLERY</h1>
           <p className="mt-4 text-[#CFCFCF]">A look inside the iron temple.</p>
         </div>
       </section>

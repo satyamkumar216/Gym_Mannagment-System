@@ -51,13 +51,13 @@ function Trainers() {
       <section className="border-b border-[#1A1A1A]">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 py-20 text-center">
           <div className="text-xs uppercase tracking-widest text-[#E02020] font-semibold">The Coaches</div>
-          <h1 className="font-display text-5xl sm:text-7xl mt-2">OUR TRAINERS</h1>
+          <h1 className="font-display text-[28px] sm:text-5xl md:text-7xl mt-2 break-words">OUR TRAINERS</h1>
           <p className="mt-4 text-[#CFCFCF]">Certified, hands-on, and obsessed with your progress.</p>
         </div>
       </section>
 
       <section>
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-5">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16 flex flex-col gap-5 md:grid md:grid-cols-2 lg:grid-cols-2">
           {trainers.map((t, i) => (
             <motion.div
               key={t.name}
@@ -65,7 +65,7 @@ function Trainers() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.06 }}
-              className="rounded-xl bg-[#111111] border border-[#222222] p-6 flex gap-5 hover:border-[#E02020]/40 transition-colors"
+              className="rounded-xl bg-[#111111] border border-[#222222] p-6 flex flex-col sm:flex-row gap-5 hover:border-[#E02020]/40 transition-colors min-w-0"
             >
               <div className="h-28 w-28 rounded-lg bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] flex items-center justify-center font-display text-4xl text-[#E02020] shrink-0">
                 {t.initials}

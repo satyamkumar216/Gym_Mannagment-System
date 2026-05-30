@@ -72,7 +72,7 @@ function Home() {
               <span className="h-1.5 w-1.5 rounded-full bg-[#E02020]" />
               Banjara Hills · Hyderabad
             </div>
-            <h1 className="font-display text-5xl sm:text-7xl md:text-8xl leading-[0.95] tracking-tight">
+            <h1 className="font-display text-[28px] sm:text-5xl md:text-7xl lg:text-8xl leading-[0.95] tracking-tight break-words">
               TRAIN HARDER.<br />
               <span className="text-[#E02020]">LIVE STRONGER.</span>
             </h1>
@@ -81,13 +81,13 @@ function Home() {
               who want results — not excuses.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
-              <Link to="/join">
-                <Button size="lg" className="bg-[#E02020] hover:bg-[#C41818] h-12 px-8 text-base">
+              <Link to="/join" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto bg-[#E02020] hover:bg-[#C41818] h-12 min-h-[44px] px-8 text-base">
                   Join Now
                 </Button>
               </Link>
-              <Link to="/plans">
-                <Button size="lg" variant="outline" className="border-white/30 bg-transparent text-white hover:bg-white/5 h-12 px-8 text-base">
+              <Link to="/plans" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto border-white/30 bg-transparent text-white hover:bg-white/5 h-12 min-h-[44px] px-8 text-base">
                   View Plans
                 </Button>
               </Link>
@@ -98,7 +98,7 @@ function Home() {
 
       {/* STATS BAR */}
       <section className="border-b border-[#1A1A1A] bg-[#0A0A0A]">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
           {stats.map((s, i) => (
             <motion.div
               key={s.label}
@@ -177,7 +177,7 @@ function Home() {
             <div className="text-xs uppercase tracking-widest text-[#E02020] font-semibold">The Coaches</div>
             <h2 className="font-display text-4xl sm:text-5xl mt-2">Meet Your Trainers</h2>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="flex gap-4 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-thin md:mx-0 md:px-0 md:grid md:grid-cols-2 lg:grid-cols-4 md:overflow-visible md:pb-0">
             {trainers.map((t, i) => (
               <motion.div
                 key={t.name}
@@ -185,7 +185,7 @@ function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.06 }}
-                className="rounded-xl bg-[#111111] border border-[#222222] p-5 hover:border-[#E02020]/40 transition-colors"
+                className="rounded-xl bg-[#111111] border border-[#222222] p-5 hover:border-[#E02020]/40 transition-colors shrink-0 w-[min(280px,78vw)] snap-start md:w-auto md:shrink"
               >
                 <div className="aspect-square rounded-lg bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] flex items-center justify-center font-display text-5xl text-[#E02020]">
                   {t.initials}

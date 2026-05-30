@@ -29,7 +29,7 @@ function About() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[500px] w-[500px] rounded-full bg-[#E02020] opacity-15 blur-[140px] pointer-events-none" />
         <div className="relative mx-auto max-w-5xl px-4 sm:px-6 py-24 text-center">
           <div className="text-xs uppercase tracking-widest text-[#E02020] font-semibold">Our Story</div>
-          <h1 className="font-display text-5xl sm:text-7xl mt-2">FORGED IN HYDERABAD</h1>
+          <h1 className="font-display text-[28px] sm:text-5xl md:text-7xl mt-2 break-words">FORGED IN HYDERABAD</h1>
           <p className="mt-6 text-lg text-[#CFCFCF] max-w-2xl mx-auto">
             Founded in <span className="text-white font-semibold">2021</span>, IronForge Gym was built by athletes
             tired of corporate "fitness centres" that sell memberships instead of results.

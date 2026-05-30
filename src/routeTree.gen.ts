@@ -9,16 +9,26 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as PaymentFailedRouteImport } from './routes/payment-failed'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as SiteRouteImport } from './routes/_site'
+import { Route as R404RouteImport } from './routes/404'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SiteIndexRouteImport } from './routes/_site.index'
 import { Route as ReceiptRefidRouteImport } from './routes/receipt.$refid'
 import { Route as InvoiceIdRouteImport } from './routes/invoice.$id'
+import { Route as DashboardRenewalsRouteImport } from './routes/dashboard.renewals'
+import { Route as DashboardRenewRouteImport } from './routes/dashboard.renew'
+import { Route as AdminSmsRouteImport } from './routes/admin.sms'
+import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
+import { Route as AdminGraceRouteImport } from './routes/admin.grace'
+import { Route as AdminBiometricRouteImport } from './routes/admin.biometric'
 import { Route as SiteTrainersRouteImport } from './routes/_site.trainers'
 import { Route as SitePlansRouteImport } from './routes/_site.plans'
 import { Route as SiteGalleryRouteImport } from './routes/_site.gallery'
@@ -26,6 +36,21 @@ import { Route as SiteContactRouteImport } from './routes/_site.contact'
 import { Route as SiteAboutRouteImport } from './routes/_site.about'
 import { Route as AdminMembersIdRouteImport } from './routes/admin.members.$id'
 
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PaymentFailedRoute = PaymentFailedRouteImport.update({
+  id: '/payment-failed',
+  path: '/payment-failed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -50,6 +75,11 @@ const SiteRoute = SiteRouteImport.update({
   id: '/_site',
   getParentRoute: () => rootRouteImport,
 } as any)
+const R404Route = R404RouteImport.update({
+  id: '/404',
+  path: '/404',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
@@ -70,9 +100,39 @@ const InvoiceIdRoute = InvoiceIdRouteImport.update({
   path: '/invoice/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRenewalsRoute = DashboardRenewalsRouteImport.update({
+  id: '/renewals',
+  path: '/renewals',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardRenewRoute = DashboardRenewRouteImport.update({
+  id: '/renew',
+  path: '/renew',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const AdminSmsRoute = AdminSmsRouteImport.update({
+  id: '/admin/sms',
+  path: '/admin/sms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/admin/reports',
+  path: '/admin/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminGraceRoute = AdminGraceRouteImport.update({
+  id: '/admin/grace',
+  path: '/admin/grace',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBiometricRoute = AdminBiometricRouteImport.update({
+  id: '/admin/biometric',
+  path: '/admin/biometric',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteTrainersRoute = SiteTrainersRouteImport.update({
@@ -107,33 +167,53 @@ const AdminMembersIdRoute = AdminMembersIdRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
+  '/404': typeof R404Route
   '/': typeof SiteIndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
+  '/payment-failed': typeof PaymentFailedRoute
+  '/search': typeof SearchRoute
   '/about': typeof SiteAboutRoute
   '/contact': typeof SiteContactRoute
   '/gallery': typeof SiteGalleryRoute
   '/plans': typeof SitePlansRoute
   '/trainers': typeof SiteTrainersRoute
+  '/admin/biometric': typeof AdminBiometricRoute
+  '/admin/grace': typeof AdminGraceRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/reports': typeof AdminReportsRoute
+  '/admin/sms': typeof AdminSmsRoute
+  '/dashboard/renew': typeof DashboardRenewRoute
+  '/dashboard/renewals': typeof DashboardRenewalsRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/receipt/$refid': typeof ReceiptRefidRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/members/$id': typeof AdminMembersIdRoute
 }
 export interface FileRoutesByTo {
-  '/dashboard': typeof DashboardRoute
+  '/404': typeof R404Route
+  '/dashboard': typeof DashboardRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
+  '/payment-failed': typeof PaymentFailedRoute
+  '/search': typeof SearchRoute
   '/about': typeof SiteAboutRoute
   '/contact': typeof SiteContactRoute
   '/gallery': typeof SiteGalleryRoute
   '/plans': typeof SitePlansRoute
   '/trainers': typeof SiteTrainersRoute
+  '/admin/biometric': typeof AdminBiometricRoute
+  '/admin/grace': typeof AdminGraceRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/reports': typeof AdminReportsRoute
+  '/admin/sms': typeof AdminSmsRoute
+  '/dashboard/renew': typeof DashboardRenewRoute
+  '/dashboard/renewals': typeof DashboardRenewalsRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/receipt/$refid': typeof ReceiptRefidRoute
   '/': typeof SiteIndexRoute
@@ -142,17 +222,27 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/404': typeof R404Route
   '/_site': typeof SiteRouteWithChildren
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/join': typeof JoinRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
+  '/payment-failed': typeof PaymentFailedRoute
+  '/search': typeof SearchRoute
   '/_site/about': typeof SiteAboutRoute
   '/_site/contact': typeof SiteContactRoute
   '/_site/gallery': typeof SiteGalleryRoute
   '/_site/plans': typeof SitePlansRoute
   '/_site/trainers': typeof SiteTrainersRoute
+  '/admin/biometric': typeof AdminBiometricRoute
+  '/admin/grace': typeof AdminGraceRoute
   '/admin/login': typeof AdminLoginRoute
+  '/admin/reports': typeof AdminReportsRoute
+  '/admin/sms': typeof AdminSmsRoute
+  '/dashboard/renew': typeof DashboardRenewRoute
+  '/dashboard/renewals': typeof DashboardRenewalsRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/receipt/$refid': typeof ReceiptRefidRoute
   '/_site/': typeof SiteIndexRoute
@@ -162,33 +252,53 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/404'
     | '/'
     | '/dashboard'
     | '/forgot-password'
     | '/join'
     | '/login'
+    | '/maintenance'
+    | '/payment-failed'
+    | '/search'
     | '/about'
     | '/contact'
     | '/gallery'
     | '/plans'
     | '/trainers'
+    | '/admin/biometric'
+    | '/admin/grace'
     | '/admin/login'
+    | '/admin/reports'
+    | '/admin/sms'
+    | '/dashboard/renew'
+    | '/dashboard/renewals'
     | '/invoice/$id'
     | '/receipt/$refid'
     | '/admin/'
     | '/admin/members/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/404'
     | '/dashboard'
     | '/forgot-password'
     | '/join'
     | '/login'
+    | '/maintenance'
+    | '/payment-failed'
+    | '/search'
     | '/about'
     | '/contact'
     | '/gallery'
     | '/plans'
     | '/trainers'
+    | '/admin/biometric'
+    | '/admin/grace'
     | '/admin/login'
+    | '/admin/reports'
+    | '/admin/sms'
+    | '/dashboard/renew'
+    | '/dashboard/renewals'
     | '/invoice/$id'
     | '/receipt/$refid'
     | '/'
@@ -196,17 +306,27 @@ export interface FileRouteTypes {
     | '/admin/members/$id'
   id:
     | '__root__'
+    | '/404'
     | '/_site'
     | '/dashboard'
     | '/forgot-password'
     | '/join'
     | '/login'
+    | '/maintenance'
+    | '/payment-failed'
+    | '/search'
     | '/_site/about'
     | '/_site/contact'
     | '/_site/gallery'
     | '/_site/plans'
     | '/_site/trainers'
+    | '/admin/biometric'
+    | '/admin/grace'
     | '/admin/login'
+    | '/admin/reports'
+    | '/admin/sms'
+    | '/dashboard/renew'
+    | '/dashboard/renewals'
     | '/invoice/$id'
     | '/receipt/$refid'
     | '/_site/'
@@ -215,12 +335,20 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  R404Route: typeof R404Route
   SiteRoute: typeof SiteRouteWithChildren
-  DashboardRoute: typeof DashboardRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   JoinRoute: typeof JoinRoute
   LoginRoute: typeof LoginRoute
+  MaintenanceRoute: typeof MaintenanceRoute
+  PaymentFailedRoute: typeof PaymentFailedRoute
+  SearchRoute: typeof SearchRoute
+  AdminBiometricRoute: typeof AdminBiometricRoute
+  AdminGraceRoute: typeof AdminGraceRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  AdminReportsRoute: typeof AdminReportsRoute
+  AdminSmsRoute: typeof AdminSmsRoute
   InvoiceIdRoute: typeof InvoiceIdRoute
   ReceiptRefidRoute: typeof ReceiptRefidRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -229,6 +357,27 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payment-failed': {
+      id: '/payment-failed'
+      path: '/payment-failed'
+      fullPath: '/payment-failed'
+      preLoaderRoute: typeof PaymentFailedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -264,6 +413,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/404': {
+      id: '/404'
+      path: '/404'
+      fullPath: '/404'
+      preLoaderRoute: typeof R404RouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/': {
       id: '/admin/'
       path: '/admin'
@@ -292,11 +448,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoiceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/renewals': {
+      id: '/dashboard/renewals'
+      path: '/renewals'
+      fullPath: '/dashboard/renewals'
+      preLoaderRoute: typeof DashboardRenewalsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/renew': {
+      id: '/dashboard/renew'
+      path: '/renew'
+      fullPath: '/dashboard/renew'
+      preLoaderRoute: typeof DashboardRenewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/admin/sms': {
+      id: '/admin/sms'
+      path: '/admin/sms'
+      fullPath: '/admin/sms'
+      preLoaderRoute: typeof AdminSmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/admin/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/login': {
       id: '/admin/login'
       path: '/admin/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/grace': {
+      id: '/admin/grace'
+      path: '/admin/grace'
+      fullPath: '/admin/grace'
+      preLoaderRoute: typeof AdminGraceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/biometric': {
+      id: '/admin/biometric'
+      path: '/admin/biometric'
+      fullPath: '/admin/biometric'
+      preLoaderRoute: typeof AdminBiometricRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_site/trainers': {
@@ -364,13 +562,35 @@ const SiteRouteChildren: SiteRouteChildren = {
 
 const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
 
+interface DashboardRouteChildren {
+  DashboardRenewRoute: typeof DashboardRenewRoute
+  DashboardRenewalsRoute: typeof DashboardRenewalsRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardRenewRoute: DashboardRenewRoute,
+  DashboardRenewalsRoute: DashboardRenewalsRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
+  R404Route: R404Route,
   SiteRoute: SiteRouteWithChildren,
-  DashboardRoute: DashboardRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   JoinRoute: JoinRoute,
   LoginRoute: LoginRoute,
+  MaintenanceRoute: MaintenanceRoute,
+  PaymentFailedRoute: PaymentFailedRoute,
+  SearchRoute: SearchRoute,
+  AdminBiometricRoute: AdminBiometricRoute,
+  AdminGraceRoute: AdminGraceRoute,
   AdminLoginRoute: AdminLoginRoute,
+  AdminReportsRoute: AdminReportsRoute,
+  AdminSmsRoute: AdminSmsRoute,
   InvoiceIdRoute: InvoiceIdRoute,
   ReceiptRefidRoute: ReceiptRefidRoute,
   AdminIndexRoute: AdminIndexRoute,

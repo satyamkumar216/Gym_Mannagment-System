@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="80" fill="#0A0A0A"/>
+  <g transform="translate(256,256)">
+    <!-- Bar -->
+    <rect x="-140" y="-16" width="280" height="32" rx="10" fill="#E02020"/>
+    <!-- Left inner plate -->
+    <rect x="-128" y="-70" width="42" height="140" rx="10" fill="#E02020"/>
+    <!-- Right inner plate -->
+    <rect x="86" y="-70" width="42" height="140" rx="10" fill="#E02020"/>
+    <!-- Left outer plate -->
+    <rect x="-182" y="-96" width="42" height="192" rx="10" fill="#E02020"/>
+    <!-- Right outer plate -->
+    <rect x="140" y="-96" width="42" height="192" rx="10" fill="#E02020"/>
+    <!-- Left end cap -->
+    <rect x="-208" y="-54" width="20" height="108" rx="8" fill="#CC1A1A"/>
+    <!-- Right end cap -->
+    <rect x="188" y="-54" width="20" height="108" rx="8" fill="#CC1A1A"/>
+  </g>
+</svg>

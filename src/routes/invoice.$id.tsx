@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { Printer, Download, Send, ArrowLeft, Check, X, Smartphone } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/invoice/$id")({
@@ -319,12 +319,21 @@ function MemberInvoice() {
 
       {/* Control bar / Top bar */}
       <div className="no-print bg-[#0A0A0A] text-white border-b border-[#222] py-4 px-6 mb-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <Link 
-          to="/admin" 
-          className="text-xs text-[#8A8A8A] hover:text-white flex items-center gap-1.5 transition-colors uppercase font-bold tracking-wider"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Staff Desk
-        </Link>
+        <div className="flex flex-col gap-1.5">
+          <Link 
+            to="/admin" 
+            className="text-xs text-[#8A8A8A] hover:text-white flex items-center gap-1.5 transition-colors uppercase font-bold tracking-wider"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Staff Desk
+          </Link>
+          <div className="text-[10px] text-[#555] flex items-center gap-1 font-mono uppercase font-semibold">
+            <Link to="/admin" className="hover:text-[#8a8a8a] transition-colors">Admin</Link>
+            <span>→</span>
+            <Link to="/admin" className="hover:text-[#8a8a8a] transition-colors">Payments</Link>
+            <span>→</span>
+            <span className="text-[#8a8a8a]">{invoice.invoiceNo}</span>
+          </div>
+        </div>
         <div className="flex gap-2.5">
           <Button 
             onClick={handlePrint}

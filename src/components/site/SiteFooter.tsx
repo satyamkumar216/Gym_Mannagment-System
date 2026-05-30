@@ -4,7 +4,7 @@ import { Dumbbell, Instagram, Facebook, Youtube, Phone, Mail, MapPin } from "luc
 export function SiteFooter() {
   return (
     <footer className="border-t border-[#1A1A1A] bg-[#0A0A0A]">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 grid grid-cols-1 md:grid-cols-4 gap-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 flex flex-col md:grid md:grid-cols-4 gap-8">
         <div>
           <Link to="/" className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-lg bg-[#E02020] flex items-center justify-center">
