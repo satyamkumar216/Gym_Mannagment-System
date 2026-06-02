@@ -862,18 +862,16 @@ function AdminIndex() {
             </button>
 
             {/* Settings */}
-            <button
-              onClick={() => { setActiveTab("settings"); setMenuOpen(false); }}
+            <Link
+              to="/admin/settings"
+              onClick={() => setMenuOpen(false)}
               className={cn(
-                "w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-                activeTab === "settings"
-                  ? "bg-[#E02020] text-white shadow-lg shadow-[#E02020]/15"
-                  : "text-[#8A8A8A] hover:text-white hover:bg-[#111111]"
+                "w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all text-[#8A8A8A] hover:text-white hover:bg-[#111111]"
               )}
             >
               <Settings className="h-4 w-4 mr-3 shrink-0" />
               <span>Global Settings</span>
-            </button>
+            </Link>
           </nav>
 
           {/* User card bottom */}

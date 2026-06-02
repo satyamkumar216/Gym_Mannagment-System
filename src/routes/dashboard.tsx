@@ -5,7 +5,7 @@ import {
   LayoutDashboard, User, Calendar, Receipt, Activity, QrCode, Bell, PhoneCall,
   Dumbbell, LogOut, X, Flame, ShieldAlert, Award, TrendingUp,
   Printer, Download, Share2, MessageCircle, AlertTriangle, CheckCircle2, ChevronRight,
-  TrendingDown, MapPin, Eye, FileText, Fingerprint, Check, UserCheck, Lock, History
+  TrendingDown, MapPin, Eye, FileText, Fingerprint, Check, UserCheck, Lock, History, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -467,7 +467,7 @@ Thank you for training with us!
           </div>
           <span className="font-display text-lg tracking-wide uppercase truncate">IronForge</span>
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setBellOpen(!bellOpen)}
@@ -481,6 +481,9 @@ Thank you for training with us!
               </span>
             )}
           </button>
+          <Link to="/dashboard/settings" className="relative touch-target flex items-center justify-center text-[#8A8A8A] hover:text-white transition-colors">
+            <Settings className="h-5 w-5" />
+          </Link>
         </div>
       </header>
 
@@ -544,6 +547,14 @@ Thank you for training with us!
               <div className="text-xs text-[#8A8A8A] truncate">{stats.memberId}</div>
             </div>
           </div>
+          <Link to="/dashboard/settings" className="block mb-1">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-[#8A8A8A] hover:text-white hover:bg-[#1A1A1A] p-2 h-9 text-xs font-semibold"
+            >
+              <Settings className="h-4 w-4 mr-2 text-[#E02020]" /> Settings
+            </Button>
+          </Link>
           <Button
             variant="ghost"
             onClick={handleLogout}

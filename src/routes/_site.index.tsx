@@ -58,6 +58,36 @@ function Home() {
   const { scrollY } = useScroll();
   const videoY = useTransform(scrollY, [0, 500], [0, 150]);
   const contentY = useTransform(scrollY, [0, 500], [0, 80]);
+
+  const [hoveredPlan, setHoveredPlan] = useState<string | null>(null);
+
+  const getCardAnimation = (planId: string) => {
+    if (hoveredPlan === null) {
+      return {
+        scale: 1,
+        opacity: 1,
+        filter: 'brightness(1)',
+        zIndex: 1,
+        boxShadow: 'none'
+      };
+    }
+    if (hoveredPlan === planId) {
+      return {
+        scale: 1.05,
+        opacity: 1,
+        filter: 'brightness(1)',
+        zIndex: 20,
+        boxShadow: '0 0 50px rgba(224, 32, 32, 0.5), 0 20px 40px rgba(0,0,0,0.6)'
+      };
+    }
+    return {
+      scale: 0.95,
+      opacity: 0.45,
+      filter: 'brightness(0.55)',
+      zIndex: 1,
+      boxShadow: 'none'
+    };
+  };
   const contentOpacity = useTransform(scrollY, [0, 300], [1, 0]);
 
   const [particles, setParticles] = useState<{ id: number; size: number; x: number; y: number; tx: number[]; ty: number[]; duration: number }[]>([]);
@@ -281,47 +311,54 @@ function Home() {
             <p className="mt-3 text-[#8A8A8A]">No joining fee. GST included. Cancel anytime.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {plans.map((p, i) => (
-              <motion.div
-                key={p.name}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.08 }}
-                className={`relative rounded-xl border p-6 bg-[#111111] transition-colors ${
-                  p.popular ? "border-[#E02020]" : "border-[#222222] hover:border-[#E02020]/40"
-                }`}
-              >
-                {p.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#E02020] text-white text-xs px-3 py-1 rounded-full font-semibold uppercase tracking-wider">
-                    Most Popular
+            {plans.map((p, i) => {
+              const planId = p.name.toLowerCase();
+              return (
+                <motion.div
+                  key={p.name}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  animate={getCardAnimation(planId)}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  onMouseEnter={() => setHoveredPlan(planId)}
+                  onMouseLeave={() => setHoveredPlan(null)}
+                  style={{ cursor: 'pointer' }}
+                  className={`relative rounded-xl border p-6 bg-[#111111] transition-colors ${
+                    p.popular ? "border-[#E02020]" : "border-[#222222] hover:border-[#E02020]/40"
+                  }`}
+                >
+                  {p.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#E02020] text-white text-xs px-3 py-1 rounded-full font-semibold uppercase tracking-wider">
+                      Most Popular
+                    </div>
+                  )}
+                  <div className="font-display text-2xl tracking-wide">{p.name}</div>
+                  <div className="mt-3 flex items-baseline gap-1">
+                    <span className="font-display text-5xl">{p.price}</span>
+                    <span className="text-[#8A8A8A]">{p.period}</span>
                   </div>
-                )}
-                <div className="font-display text-2xl tracking-wide">{p.name}</div>
-                <div className="mt-3 flex items-baseline gap-1">
-                  <span className="font-display text-5xl">{p.price}</span>
-                  <span className="text-[#8A8A8A]">{p.period}</span>
-                </div>
-                {p.save && (
-                  <div className="mt-2 inline-block text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
-                    {p.save}
-                  </div>
-                )}
-                <ul className="mt-6 space-y-3">
-                  {p.perks.map((perk) => (
-                    <li key={perk} className="flex items-start gap-2 text-sm text-[#CFCFCF]">
-                      <Check className="h-4 w-4 text-[#E02020] mt-0.5 shrink-0" />
-                      {perk}
-                    </li>
-                  ))}
-                </ul>
-                <Link to="/plans" className="block mt-6">
-                  <Button className={`w-full ${p.popular ? "bg-[#E02020] hover:bg-[#C41818]" : "bg-[#1A1A1A] hover:bg-[#222222] border border-[#222222]"}`}>
-                    Choose {p.name}
-                  </Button>
-                </Link>
-              </motion.div>
-            ))}
+                  {p.save && (
+                    <div className="mt-2 inline-block text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                      {p.save}
+                    </div>
+                  )}
+                  <ul className="mt-6 space-y-3">
+                    {p.perks.map((perk) => (
+                      <li key={perk} className="flex items-start gap-2 text-sm text-[#CFCFCF]">
+                        <Check className="h-4 w-4 text-[#E02020] mt-0.5 shrink-0" />
+                        {perk}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link to="/plans" className="block mt-6">
+                    <Button className={`w-full ${p.popular ? "bg-[#E02020] hover:bg-[#C41818]" : "bg-[#1A1A1A] hover:bg-[#222222] border border-[#222222]"}`}>
+                      Choose {p.name}
+                    </Button>
+                  </Link>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>

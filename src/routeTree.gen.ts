@@ -22,9 +22,11 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as SiteIndexRouteImport } from './routes/_site.index'
 import { Route as ReceiptRefidRouteImport } from './routes/receipt.$refid'
 import { Route as InvoiceIdRouteImport } from './routes/invoice.$id'
+import { Route as DashboardSettingsRouteImport } from './routes/dashboard.settings'
 import { Route as DashboardRenewalsRouteImport } from './routes/dashboard.renewals'
 import { Route as DashboardRenewRouteImport } from './routes/dashboard.renew'
 import { Route as AdminSmsRouteImport } from './routes/admin.sms'
+import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as AdminGraceRouteImport } from './routes/admin.grace'
@@ -100,6 +102,11 @@ const InvoiceIdRoute = InvoiceIdRouteImport.update({
   path: '/invoice/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardRenewalsRoute = DashboardRenewalsRouteImport.update({
   id: '/renewals',
   path: '/renewals',
@@ -113,6 +120,11 @@ const DashboardRenewRoute = DashboardRenewRouteImport.update({
 const AdminSmsRoute = AdminSmsRouteImport.update({
   id: '/admin/sms',
   path: '/admin/sms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminReportsRoute = AdminReportsRouteImport.update({
@@ -185,9 +197,11 @@ export interface FileRoutesByFullPath {
   '/admin/grace': typeof AdminGraceRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/sms': typeof AdminSmsRoute
   '/dashboard/renew': typeof DashboardRenewRoute
   '/dashboard/renewals': typeof DashboardRenewalsRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/receipt/$refid': typeof ReceiptRefidRoute
   '/admin/': typeof AdminIndexRoute
@@ -211,9 +225,11 @@ export interface FileRoutesByTo {
   '/admin/grace': typeof AdminGraceRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/sms': typeof AdminSmsRoute
   '/dashboard/renew': typeof DashboardRenewRoute
   '/dashboard/renewals': typeof DashboardRenewalsRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/receipt/$refid': typeof ReceiptRefidRoute
   '/': typeof SiteIndexRoute
@@ -240,9 +256,11 @@ export interface FileRoutesById {
   '/admin/grace': typeof AdminGraceRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/reports': typeof AdminReportsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/sms': typeof AdminSmsRoute
   '/dashboard/renew': typeof DashboardRenewRoute
   '/dashboard/renewals': typeof DashboardRenewalsRoute
+  '/dashboard/settings': typeof DashboardSettingsRoute
   '/invoice/$id': typeof InvoiceIdRoute
   '/receipt/$refid': typeof ReceiptRefidRoute
   '/_site/': typeof SiteIndexRoute
@@ -270,9 +288,11 @@ export interface FileRouteTypes {
     | '/admin/grace'
     | '/admin/login'
     | '/admin/reports'
+    | '/admin/settings'
     | '/admin/sms'
     | '/dashboard/renew'
     | '/dashboard/renewals'
+    | '/dashboard/settings'
     | '/invoice/$id'
     | '/receipt/$refid'
     | '/admin/'
@@ -296,9 +316,11 @@ export interface FileRouteTypes {
     | '/admin/grace'
     | '/admin/login'
     | '/admin/reports'
+    | '/admin/settings'
     | '/admin/sms'
     | '/dashboard/renew'
     | '/dashboard/renewals'
+    | '/dashboard/settings'
     | '/invoice/$id'
     | '/receipt/$refid'
     | '/'
@@ -324,9 +346,11 @@ export interface FileRouteTypes {
     | '/admin/grace'
     | '/admin/login'
     | '/admin/reports'
+    | '/admin/settings'
     | '/admin/sms'
     | '/dashboard/renew'
     | '/dashboard/renewals'
+    | '/dashboard/settings'
     | '/invoice/$id'
     | '/receipt/$refid'
     | '/_site/'
@@ -348,6 +372,7 @@ export interface RootRouteChildren {
   AdminGraceRoute: typeof AdminGraceRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminReportsRoute: typeof AdminReportsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSmsRoute: typeof AdminSmsRoute
   InvoiceIdRoute: typeof InvoiceIdRoute
   ReceiptRefidRoute: typeof ReceiptRefidRoute
@@ -448,6 +473,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InvoiceIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/settings': {
+      id: '/dashboard/settings'
+      path: '/settings'
+      fullPath: '/dashboard/settings'
+      preLoaderRoute: typeof DashboardSettingsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/renewals': {
       id: '/dashboard/renewals'
       path: '/renewals'
@@ -467,6 +499,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/sms'
       fullPath: '/admin/sms'
       preLoaderRoute: typeof AdminSmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/reports': {
@@ -565,11 +604,13 @@ const SiteRouteWithChildren = SiteRoute._addFileChildren(SiteRouteChildren)
 interface DashboardRouteChildren {
   DashboardRenewRoute: typeof DashboardRenewRoute
   DashboardRenewalsRoute: typeof DashboardRenewalsRoute
+  DashboardSettingsRoute: typeof DashboardSettingsRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardRenewRoute: DashboardRenewRoute,
   DashboardRenewalsRoute: DashboardRenewalsRoute,
+  DashboardSettingsRoute: DashboardSettingsRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
@@ -590,6 +631,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminGraceRoute: AdminGraceRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminReportsRoute: AdminReportsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminSmsRoute: AdminSmsRoute,
   InvoiceIdRoute: InvoiceIdRoute,
   ReceiptRefidRoute: ReceiptRefidRoute,

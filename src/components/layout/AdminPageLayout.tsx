@@ -357,12 +357,11 @@ export function AdminPageLayout({ children }: AdminPageLayoutProps) {
 
             {/* Settings */}
             <Link
-              to="/admin"
-              search={{ tab: "settings" }}
+              to="/admin/settings"
               onClick={() => setMenuOpen(false)}
               className={cn(
                 "w-full flex items-center px-3 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-                isTabActive("settings")
+                currentPath === "/admin/settings"
                   ? "bg-[#E02020] text-white shadow-lg shadow-[#E02020]/15"
                   : "text-[#8A8A8A] hover:text-white hover:bg-[#111111]"
               )}
